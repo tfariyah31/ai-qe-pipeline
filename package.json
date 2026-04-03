@@ -37,7 +37,6 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.42.1",
     "@types/node": "^25.3.5"
   }
 }

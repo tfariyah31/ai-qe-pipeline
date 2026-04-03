@@ -8,7 +8,7 @@ const options = {
       version: '1.0.0',
       description: 'TestMart e-commerce API documentation',
     },
-    servers: [{ url: 'http://localhost:5000' }],
+    servers: [{ url: 'http://localhost:5001' }],
     components: {
       securitySchemes: {
         bearerAuth: {

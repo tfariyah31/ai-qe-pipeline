@@ -1,29 +1,59 @@
-# dependencies
+# Dependencies
 node_modules/
 /.pnp
 .pnp.js
-.env
-backend/.env
+*.log
+*.gz
 
-# testing
-/coverage
-/playwright-report/
-/test-results/
-/test-results-snapshots/
+# Python & Virtual Environments
+venv/
+.venv/
+env/
+bin/
+lib/
+include/
+pyvenv.cfg
+__pycache__/
+*.py[cod]
+*$py.class
 
-# production
-/build
-/dist/
-
-# misc
-.DS_Store
+# Environment Variables (Keep these secret!)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.sessions/
+# Testing
+/assets/
+/playwright-report/
+/test-results/
+/test-results-snapshots/
+.pytest_cache/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Secret files
+.secrets
+
+# Database (MongoDB/Mongoose)
+*.swp
+*.bak
+dump/
+data/db/
+
+# Production & Build
+/build
+/dist/
+.npm/
+
+# Misc / OS
+.DS_Store
+Thumbs.db
+.sessions/.secrets
+.vscode/
+.idea/

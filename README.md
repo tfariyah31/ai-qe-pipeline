@@ -1,222 +1,116 @@
-# TestMart
+# TestMart AI-QE Pipeline
 
-A full-stack web application with a React frontend and Node.js backend, featuring role-based user authentication, product management, shopping cart, and user administration.
+> An end-to-end AI-assisted QA workflow demonstrating how to effectively leverage AI-generated test outputs—from feature specifications to rated, enriched, and executable pytest scripts.
 
----
+## Pipeline Overview
+```
+requirements/LOGIN_FEATURES.md
+        │
+        ▼
+[1] generate_test_cases.py        ← Gemini 2.5 Flash generates Gherkin/Local LLM
+        │
+        ▼
+tests/test_cases/login.test_case.md
+        │
+        ▼
+[2] rate_tests.py                 ← Tester scores quality across 5 dimensions
+        │
+        ▼
+ratings/login_ratings.json
+        │
+        ▼
+[3] enrich_tests.py               ← tags (@smoke/@regression) + priority (P0/P1/P2)
+        │
+        ▼
+tests/test_cases/login.enriched.md
+        │
+        ▼
+[4] setup_test_infra.py           ← generates conftest.py + pytest.ini
+        │
+        ▼
+[5] generate_api_test_scripts.py  ← Gemini generates pytest from enriched md + openapi.json
+        │
+        ▼
+tests/api/test_login_api.py       ← runnable pytest suite
+```
 
-## Tech Stack
+## Why the Rating Step Exists
 
-- **Frontend:** React, Material-UI (MUI), React Router
-- **Backend:** Node.js, Express, MongoDB (Mongoose)
-- **Auth:** JWT (access + refresh tokens), bcryptjs
-- **Testing:** Playwright (end-to-end)
-- **CI/CD:** GitHub Actions
+AI-generated tests are a first draft, not the final output. The rating step enforces quality gates across five API-focused dimensions and aligns with the test plan before any test is allowed to proceed.
 
----
+Weighted Risk Scoring
+Weighted Average model is used to calculate the final Risk Score. This ensures that business-critical factors have a higher impact on the test priority than technical specificities.
 
-## Features
+| Dimension | Weight| What it checks |
+|---|---|---|
+| Business Impact | 1.5 | Does failure here break the business? |
+| Frequency of Use | 1.2 | How often do real users exercise this flow? |
+| Failure Probability | 1.3 | How likely is this to break? (complex logic, frequent changes) |
+| Dependency Impact | 1.0 | How many features break if this fails? |
+| Assertion specificity | 0.5 | Are Then steps precise enough to verify? |
 
-### Security & Authentication
-- JWT-based login with short-lived access tokens and long-lived refresh tokens
-- `bcryptjs` password hashing
-- Role-based access control with middleware enforcement (`superadmin`, `merchant`, `customer`)
-- Account lockout after 3 failed login attempts (5-minute lock)
-- HTTP header protection via `Helmet`
-- XSS prevention via `xss-clean`
-- NoSQL injection prevention with `express-mongo-sanitize`
-- Rate limiting to guard against brute-force attacks
+Risk Score = [ (Impact × 1.5) + (Frequency × 1.2) + (Probability × 1.3) + (Dependency × 1.0) + (Assertion × 0.5) ] / 5.5
 
-### Role-Based Access
+Quality Gates & Priority Mapping
 
-#### Super Admin (`superadmin`)
-- Access to all pages and features
-- View all products
-- Add new products
-- Manage all user accounts (update name, email, role, block/unblock)
+Scenarios scoring below a threshold or marked reject are dropped before enrichment. The remaining tests are tagged based on their weighted score:
 
-#### Merchant (`merchant`)
-- View all products
-- Add new products (name, description, image, price, rating)
-- Edit existing products
-- Access merchant dashboard with store stats and top products
+P0 (4.5 - 5.0): Critical Path. Automatically tagged @smoke.
 
-#### Customer (`customer`)
-- Browse all products
-- Add products to cart
-- View and manage cart (adjust quantities, remove items)
-- View order summary with subtotal, tax, and total
-- Secure checkout with Stripe Sandbox payment integration
-- Place orders after successful payment
-- Access customer dashboard with order history and wishlist overview
+P1 (4.0 - 4.4): High Risk. Included in @smoke pipeline.
 
+P2 (3.0 - 3.9): Medium Risk. Tagged @regression (if approved).
 
-#### Payment Integration
-- Integrated Stripe Sandbox for secure test payments
-- Customers can complete checkout using Stripe’s payment flow
-- Payment confirmation before order creation
-- Simulated real-world e-commerce payment processing
-- Supports testing with Stripe test cards
-- Designed to enable automated payment flow testing
-  
-### Frontend & UI
-- Role-specific dashboards rendered automatically on login
-- Smart navbar with role badge and context-aware links
-- Cart icon with live item count badge (customers only)
-- Fully responsive UI built with Material-UI (MUI)
-- Protected routes — unauthorized roles are redirected automatically
+Drop (< 3.0): Low risk or redundant.
 
-### DevOps & Quality Assurance
-- End-to-end test suite powered by Playwright
-- CI/CD pipeline via GitHub Actions for automated testing and deployment
+All decisions are logged in ratings/login_ratings.json and summarized in your terminal after each rating session.
 
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) v16 or higher
-- [MongoDB](https://www.mongodb.com/try/download/community) (local) or a [MongoDB Atlas](https://www.mongodb.com/atlas) cloud URI
-- [Git](https://git-scm.com/)
-
----
-
-
-### 1. Clone the Repository
-
+## Quick Start
 ```bash
-git clone https://github.com/tfariyah31/TestMart-ReactNode_Playwright_CI.git
-cd TestMart
+# 1. Clone and activate venv
+python3 -m venv venv && source venv/bin/activate
+pip install pytest requests google-genai
+
+# 2. Set your Gemini API key
+export GEMINI_API_KEY=your_key_here
+
+# 3. Run the full pipeline
+./scripts/run_pipeline.sh {feature_name}
+
+# 4. Run generated tests (backend must be running on localhost:5001)
+pytest tests/api/test_login_api.py -v
 ```
 
-### 2. Set Up the Backend
-
-```bash
-cd backend
-npm install
+## Project Structure
 ```
-
-Create a `.env` file in the `backend` folder:
-
-```env
-PORT=5001
-MONGO_URI=mongodb://localhost:27017/mywebapp
-JWT_SECRET=your_secret_key_here
-REFRESH_SECRET=your_refresh_secret
-```
-> Replace `MONGO_URI` with your MongoDB Atlas connection string if using a cloud database.
-
-Start the backend server:
-
-```bash
-node server.js
-```
-
-The backend will be available at `http://localhost:5001`.
-
-### 3. Set Up the Frontend
-
-```bash
-cd ../frontend
-npm install
-npm start
-```
-
-The frontend will be available at `http://localhost:3000`.
-
----
-## **Project Structure**
-```
-TestMart/
-├── backend/
-│   ├── config/          
-│   ├── controllers/     
-│   ├── middleware/      
-│   ├── models/          
-│   ├── routes/          
-│   ├── server.js        
-│   └── .env             
-├── frontend/
-│   ├── src/             
-│   ├── utils/             
-│   ├── App.js     
-│   └── ...              
+AI-QE-Pipeline/
+├── requirements/
+│   └── LOGIN_FEATURES.md          # feature spec — pipeline input
+│   └── openapi.json               # API contract
+│   
 ├── tests/
-│   ├── login.spec.js    
-├── package.json         
-├── playwright.config.js
-└── README.md            
+│   ├── conftest.py                # shared fixtures (auto-generated)
+│   ├── test_cases/
+│   │   ├── login.test_case.md     # AI first draft
+│   │   ├── login.enriched.md      # rated + tagged + prioritised
+│   └── api/
+│       └── test_login_api.py      # final runnable pytest
+├── ratings/
+│   └── login_ratings.json         # quality scores provided by a Tester
+└── scripts/
+    ├── generate_test_cases.py     # step 1 — Gemini Gherkin generation
+    ├── rate_tests.py              # step 2 — interactive SDET rating
+    ├── enrich_tests.py            # step 3 — tag + prioritise
+    ├── setup_test_infra.py        # step 4 — conftest + pytest.ini
+    ├── generate_api_test_scripts.py # step 5 — Gemini pytest generation
+    └── run_pipeline.sh            # runs steps 2–5 locally
 ```
 
----
-## API Endpoints
+## CI — GitHub Actions
 
-### Auth — `/api/auth`
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `generate_testcases.yml` | Push to `requirements/**_FEATURES.md` | Runs Gemini generation (step 1) |
 
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/login` | Public | Login and receive JWT tokens |
-| POST | `/register` | Public | Register a new customer account |
-| POST | `/refresh` | Public | Refresh access token |
-| POST | `/logout` | Authenticated | Logout and invalidate refresh token |
-
-### Products — `/api/products`
-
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/` | All roles | Get all products |
-| GET | `/:id` | All roles | Get single product |
-| POST | `/` | Merchant, Super Admin | Add a new product |
-| PUT | `/:id` | Merchant, Super Admin | Update a product |
-| DELETE | `/:id` | Merchant, Super Admin | Delete a product |
-
-### Users — `/api/users`
-
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/` | Super Admin | Get all users |
-| GET | `/:id` | Super Admin | Get single user |
-| PUT | `/:id` | Super Admin | Update user info, role, or block status |
-
----
-
-## Playwright Tests
-
-### API Tests Prerequisites
-
-- Backend server running at `http://127.0.0.1:5001`
-- Test users seeded in MongoDB — run `npm run seed:test` if not done yet
-
-## Running the Tests
-
-Global setup (`tests/global.setup.ts`) runs **automatically** before the tests. It logs in as each role (`superadmin`, `merchant`, `customer`) and saves session tokens to `.sessions/` for reuse across all tests.
-
-```bash
-npm run test:api
-```
-Re-run this any time your tokens expire or you reseed the database.
-
-
-## Test Coverage
-
-| Spec file | Endpoints |
-|---|---|
-| `auth.api.spec.ts` | `POST /api/auth/login`, `/register`, `/refresh`, `/logout` |
-| `users.api.spec.ts` | `GET /api/users`, `GET /api/users/:id`, `PUT /api/users/:id` |
-| `products.api.spec.ts` | `GET /api/products`, `GET /api/products/:id`, `POST`, `PUT`, `DELETE` |
-
-## Notes
-
-- Tests are **read-only safe** — any products created during testing are cleaned up via `afterAll`
-- Blocked/locked user credentials are available via `getCredentials('blockedUser')` in `fixtures/auth.fixture.ts` for scenario-specific tests
-
----
-
-## Author
-**Tasnim Fariyah**
-
-[![GitHub](https://img.shields.io/badge/GitHub-tfariyah31-181717?logo=github)](https://github.com/tfariyah31)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-tasnim--fariyah-0A66C2?logo=linkedin)](https://www.linkedin.com/in/tasnim-fariyah/)
-
----
-
+> Steps 2–3 (rating + enrichment) are intentionally local — they require
+> a Tester's judgment.

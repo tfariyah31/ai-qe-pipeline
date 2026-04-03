@@ -1,0 +1,168 @@
+{
+  "source_file": "tests/test_cases/login.test_case.md",
+  "generated_at": "2026-04-02T18:38:57",
+  "total_scenarios": 5,
+  "smoke_pipeline": {
+    "tag": "@smoke",
+    "count": 3,
+    "tests": [
+      {
+        "test_id": "TC001",
+        "title": "Successful Login for a Customer",
+        "risk_score": 4.44
+      },
+      {
+        "test_id": "TC004",
+        "title": "Merchant Can Access Product Management Features",
+        "risk_score": 4.67
+      },
+      {
+        "test_id": "TC005",
+        "title": "Unauthorized Access to Super Admin User Management is Prevented",
+        "risk_score": 4.45
+      }
+    ]
+  },
+  "ratings": [
+    {
+      "test_id": "TC001",
+      "title": "Successful Login for a Customer",
+      "rated_at": "2026-04-02T18:36:49",
+      "dimensions": {
+        "business_impact": {
+          "score": 5
+        },
+        "frequency_of_use": {
+          "score": 5
+        },
+        "failure_probability": {
+          "score": 3
+        },
+        "dependency_impact": {
+          "score": 5
+        },
+        "assertion_specificity": {
+          "score": 4
+        }
+      },
+      "risk_score": 4.44,
+      "priority": "P1",
+      "smoke_tag": "@smoke",
+      "regression_tag": null,
+      "verdict": "approve",
+      "tester_notes": ""
+    },
+    {
+      "test_id": "TC002",
+      "title": "Login Fails with Invalid Credentials",
+      "rated_at": "2026-04-02T18:37:20",
+      "dimensions": {
+        "business_impact": {
+          "score": 5
+        },
+        "frequency_of_use": {
+          "score": 3
+        },
+        "failure_probability": {
+          "score": 4
+        },
+        "dependency_impact": {
+          "score": 3
+        },
+        "assertion_specificity": {
+          "score": 4
+        }
+      },
+      "risk_score": 3.87,
+      "priority": "P2",
+      "smoke_tag": null,
+      "regression_tag": "@regression",
+      "verdict": "approve",
+      "tester_notes": ""
+    },
+    {
+      "test_id": "TC003",
+      "title": "Account Lockout after Multiple Failed Login Attempts",
+      "rated_at": "2026-04-02T18:37:47",
+      "dimensions": {
+        "business_impact": {
+          "score": 5
+        },
+        "frequency_of_use": {
+          "score": 3
+        },
+        "failure_probability": {
+          "score": 3
+        },
+        "dependency_impact": {
+          "score": 3
+        },
+        "assertion_specificity": {
+          "score": 4
+        }
+      },
+      "risk_score": 3.64,
+      "priority": "P2",
+      "smoke_tag": null,
+      "regression_tag": "@regression",
+      "verdict": "approve",
+      "tester_notes": ""
+    },
+    {
+      "test_id": "TC004",
+      "title": "Merchant Can Access Product Management Features",
+      "rated_at": "2026-04-02T18:38:28",
+      "dimensions": {
+        "business_impact": {
+          "score": 5
+        },
+        "frequency_of_use": {
+          "score": 5
+        },
+        "failure_probability": {
+          "score": 4
+        },
+        "dependency_impact": {
+          "score": 5
+        },
+        "assertion_specificity": {
+          "score": 4
+        }
+      },
+      "risk_score": 4.67,
+      "priority": "P0",
+      "smoke_tag": "@smoke",
+      "regression_tag": null,
+      "verdict": "approve",
+      "tester_notes": ""
+    },
+    {
+      "test_id": "TC005",
+      "title": "Unauthorized Access to Super Admin User Management is Prevented",
+      "rated_at": "2026-04-02T18:38:57",
+      "dimensions": {
+        "business_impact": {
+          "score": 5
+        },
+        "frequency_of_use": {
+          "score": 4
+        },
+        "failure_probability": {
+          "score": 4
+        },
+        "dependency_impact": {
+          "score": 5
+        },
+        "assertion_specificity": {
+          "score": 4
+        }
+      },
+      "risk_score": 4.45,
+      "priority": "P1",
+      "smoke_tag": "@smoke",
+      "regression_tag": null,
+      "verdict": "approve",
+      "tester_notes": ""
+    }
+  ]
+}

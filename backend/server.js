@@ -10,16 +10,37 @@ const sanitize = require('./middleware/sanitize');
 const userRoutes = require('./routes/users');
 const paymentRoutes = require('./routes/payments');
 
-
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "AI QE Pipeline API",
+      version: "1.0.0",
+    },
+    servers: [{ url: "http://localhost:5001" }]
+  },
+  apis: ["./routes/**/*.js"]
+};
 
+const swaggerSpec = swaggerJsdoc(options);
+
+
+// ✅ JSON endpoint FIRST
+app.get("/api-docs/swagger.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
+
+
+// ✅ Swagger UI AFTER
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 //const cleanupBlockedUsers = require('./utils/cleanupBlockedUsers');
 
 // Run cleanup every minute

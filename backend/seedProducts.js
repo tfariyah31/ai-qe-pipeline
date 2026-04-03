@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const Product = require('./models/Product');
 const dotenv = require('dotenv');
 
-dotenv.config();
+//dotenv.config();
+dotenv.config({ path: require('path').resolve(__dirname, '.env') });
 
 // Sample product data
 const products = [
