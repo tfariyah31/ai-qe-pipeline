@@ -166,3 +166,13 @@ AI-QE-Pipeline/
 
 > Steps 2–3 (rating + enrichment) are intentionally local — they require
 > a Tester's judgment.
+
+
+---
+
+## Author
+
+**Tasnim Fariyah**
+
+[![GitHub](https://img.shields.io/badge/GitHub-tfariyah31-181717?logo=github)](https://github.com/tfariyah31)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-tasnim--fariyah-0A66C2?logo=linkedin)](https://www.linkedin.com/in/tasnim-fariyah/)
