@@ -19,9 +19,10 @@ TEST_USERS = {
     "blocked":    {"email": "blocked@test.com",    "password": "BlockedPass123!",  "role": "customer"},
 }
 
+# ── Helpers ──────────────────────────────────────────────────
 
-def _get_token(role: str) -> str:
-    """Login and return the accessToken for the given role."""
+def _fetch_user_auth(role: str) -> dict:
+    """Logs in and returns the full JSON response (tokens + user info) from the Auth API."""
     user = TEST_USERS[role]
     resp = requests.post(
         f"{BASE_URL}{LOGIN_ENDPOINT}",
@@ -29,13 +30,24 @@ def _get_token(role: str) -> str:
         timeout=10,
     )
     resp.raise_for_status()
-    return resp.json().get("accessToken", "")
+    return resp.json()
 
+def _get_token(role: str) -> str:
+    """Helper to extract just the accessToken for a given role."""
+    auth_data = _fetch_user_auth(role)
+    return auth_data.get("accessToken", "")
+
+# ── Fixtures ─────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
+    """The base URL for the API under test."""
     return BASE_URL
 
+@pytest.fixture(scope="session")
+def test_users_data():
+    """Provides access to the static test user credentials dictionary."""
+    return TEST_USERS
 
 @pytest.fixture(scope="session")
 def requests_session():
@@ -44,18 +56,23 @@ def requests_session():
     yield session
     session.close()
 
+@pytest.fixture(scope="session")
+def auth_tokens() -> dict:
+    """
+    Provides the full raw auth response for Super Admin.
+    Used for tests requiring refreshTokens or raw dictionary access.
+    """
+    return _fetch_user_auth('superadmin')
 
 @pytest.fixture(scope="session")
 def auth_headers() -> dict:
-    """Bearer token headers for the Super Admin role."""
+    """Bearer token headers for the Super Admin role (P0/P1 standard)."""
     return {"Authorization": f"Bearer {_get_token('superadmin')}"}
-
 
 @pytest.fixture(scope="session")
 def merchant_headers() -> dict:
     """Bearer token headers for the Merchant role."""
     return {"Authorization": f"Bearer {_get_token('merchant')}"}
-
 
 @pytest.fixture(scope="session")
 def customer_headers() -> dict:

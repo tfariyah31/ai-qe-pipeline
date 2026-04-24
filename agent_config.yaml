@@ -1,0 +1,105 @@
+# ============================================================
+# TestMart AI-QE Pipeline — Agent Configuration
+# ============================================================
+# Central config for all agents. Orchestrator reads this
+# before starting any run. Each agent loads its own section.
+# ============================================================
+
+groq:
+  api_key_env: GROQ_API_KEY          # export GROQ_API_KEY=your_key
+  base_url: https://api.groq.com/openai/v1
+
+# ── Model assignments ────────────────────────────────────────
+# Heavy reasoning → llama-3.3-70b-versatile (1,000 req/day)
+# Light routing   → llama-3.1-8b-instant    (14,400 req/day)
+# ─────────────────────────────────────────────────────────────
+agents:
+
+  orchestrator:
+    model: llama-3.1-8b-instant
+    temperature: 0.1               # deterministic routing
+    max_tokens: 512
+    confidence_threshold: 0.80     # below this → abort pipeline
+    mode: autonomous               # no human gate
+    max_retries: 2
+
+  spec_analyst:
+    model: llama-3.3-70b-versatile
+    temperature: 0.2               # analytical, low variance
+    max_tokens: 2048
+    confidence_threshold: 0.75     # below → flag spec as ambiguous
+    mode: autonomous
+    max_retries: 2
+
+  gherkin_author:
+    model: llama-3.3-70b-versatile
+    temperature: 0.4               # some creativity, still rule-bound
+    max_tokens: 4096
+    confidence_threshold: 0.75     # below → flag scenarios for review
+    mode: autonomous
+    max_retries: 2
+    limits:
+      max_scenarios_per_feature: 15  # hard cap; above → human approval
+      min_edge_cases_per_endpoint: 1
+
+  rating_judge:
+    model: llama-3.3-70b-versatile
+    temperature: 0.1               # scoring must be consistent
+    max_tokens: 3000
+    confidence_threshold: 0.70     # formula recalculated in Python — LLM confidence is advisory
+    mode: autonomous               # fully autonomous — no interactive prompts
+    max_retries: 2
+    escalation:
+      enabled: true
+      queue_path: human_review/human_review_queue.json
+      # Agent scores everything. Low-confidence items land here.
+      # SDET inspects queue; approvals fed back as override file.
+      override_path: human_review/rating_overrides.json
+
+  enrichment:
+    model: llama-3.1-8b-instant    # tagging is straightforward
+    temperature: 0.1
+    max_tokens: 2048
+    confidence_threshold: 0.70  # Gherkin built in Python — only LLM rejection summary can fail
+    mode: autonomous
+    max_retries: 2
+    limits:
+      max_p0_percent: 20           # P0 cannot exceed 20% of total scenarios
+
+  script_forge:
+    model: llama-3.1-8b-instant    # switched: 8b has 14,400 RPD vs 70b's 1,000
+    temperature: 0.2               # code gen: low variance; repair logic catches errors
+    max_tokens: 2048               # 8b needs lower max_tokens
+    confidence_threshold: 0.75
+    mode: autonomous
+    max_retries: 2
+
+# ── Paths ────────────────────────────────────────────────────
+paths:
+  requirements_dir: requirements/
+  test_cases_dir: tests/test_cases/
+  api_tests_dir: tests/api/
+  ratings_dir: ratings/
+  memory_dir: agent_memory/
+  logs_dir: logs/
+  human_review_dir: human_review/
+
+# ── Logging ──────────────────────────────────────────────────
+logging:
+  level: INFO                      # DEBUG | INFO | WARNING
+  write_decision_logs: true        # per-agent decision log each run
+  write_pipeline_summary: true     # pipeline_summary.log at end of run
+
+# ── Memory ───────────────────────────────────────────────────
+memory:
+  enabled: true
+  max_entries_per_agent: 50        # rolling window; oldest pruned
+# ── Rate limiting ─────────────────────────────────────────────
+# Groq free tier: llama-3.3-70b = 12,000 TPM | llama-3.1-8b = 6,000 TPM
+# Protects against 429s at the orchestrator level.
+rate_limits:
+  between_agents_delay_sec: 10   # cooldown between agents
+  between_scenarios_delay_sec: 6  # cooldown between per-scenario LLM calls
+                                  # llama-3.3-70b = 12,000 TPM. ~1000 tok/call → 6s gap = safe
+  on_429_base_wait_sec: 30       # base wait on 429 before retry
+  max_retries_on_429: 3          # retries specifically for rate limit errors

@@ -1,0 +1,81 @@
+{
+  "feature_name": "login",
+  "total_scenarios": 10,
+  "scenarios": [
+    {
+      "title": "Successful login",
+      "tag": "@smoke",
+      "endpoint": "POST /api/auth/login",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "happy_path"
+    },
+    {
+      "title": "Invalid login credentials",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/login",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "negative"
+    },
+    {
+      "title": "Account lockout after 3 failed login attempts",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/login",
+      "spec_source": "Account lockout after 3 failed login attempts (5 minute lock)",
+      "type": "edge_case"
+    },
+    {
+      "title": "Successful registration",
+      "tag": "@smoke",
+      "endpoint": "POST /api/auth/register",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "happy_path"
+    },
+    {
+      "title": "Duplicate registration",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/register",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "negative"
+    },
+    {
+      "title": "Successful logout",
+      "tag": "@smoke",
+      "endpoint": "POST /api/auth/logout",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "happy_path"
+    },
+    {
+      "title": "Logout without being logged in",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/logout",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "negative"
+    },
+    {
+      "title": "Successful token refresh",
+      "tag": "@smoke",
+      "endpoint": "POST /api/auth/refresh",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "happy_path"
+    },
+    {
+      "title": "Invalid token refresh",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/refresh",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "negative"
+    },
+    {
+      "title": "Token refresh without a refresh token",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/refresh",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "edge_case"
+    }
+  ],
+  "confidence": 0.8,
+  "flagged": [
+    "Ambiguous account lockout behavior",
+    "Lack of details on role-based access control implementation"
+  ]
+}

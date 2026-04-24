@@ -1,0 +1,49 @@
+{
+  "feature_name": "login",
+  "total_tests": 3,
+  "tests": [
+    {
+      "function_name": "test_successful_login",
+      "scenario_title": "Successful login",
+      "marker": "smoke",
+      "priority": "P0",
+      "endpoint": "POST /api/auth/login",
+      "fixtures_used": [
+        "base_url",
+        "auth_headers",
+        "test_users_data"
+      ],
+      "assert_count": 2
+    },
+    {
+      "function_name": "test_invalid_login_credentials",
+      "scenario_title": "Invalid login credentials",
+      "marker": "smoke",
+      "priority": "P1",
+      "endpoint": "POST /api/auth/login",
+      "fixtures_used": [
+        "base_url",
+        "test_users_data",
+        "auth_headers"
+      ],
+      "assert_count": 2
+    },
+    {
+      "function_name": "test_successful_token_refresh",
+      "scenario_title": "Successful token refresh",
+      "marker": "smoke",
+      "priority": "P1",
+      "endpoint": "POST /api/auth/refresh",
+      "fixtures_used": [
+        "base_url",
+        "auth_tokens"
+      ],
+      "assert_count": 2
+    }
+  ],
+  "unconvertible": [],
+  "confidence": 1.0,
+  "flagged": [],
+  "run_id": "20260412_051118",
+  "script_path": "tests/api/test_login_api.py"
+}

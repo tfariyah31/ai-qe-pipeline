@@ -49,7 +49,7 @@ exports.login = async (req, res) => {
   try {
     const user = await User.findOne({ email });
 
-    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials', attemptsLeft: req.rateLimit?.remaining ?? null });
+    if (!user) return res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS', message: 'Invalid credentials', attemptsLeft: req.rateLimit?.remaining ?? null });
 
     // 1. Check if account is admin-blocked
     if (user.isBlocked) {
@@ -82,6 +82,7 @@ exports.login = async (req, res) => {
 
       return res.status(401).json({
         success: false,
+        error: 'INVALID_CREDENTIALS',
         message: 'Invalid credentials',
         attemptsLeft,
         ...(user.lockUntil && { locked: true, message: 'Account locked due to too many failed attempts. Try again in 5 minutes.' })
