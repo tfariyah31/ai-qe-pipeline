@@ -1,0 +1,202 @@
+name: AI-QE Pipeline
+
+on:
+  push:
+    paths:
+      - "requirements/**_FEATURES.md"   # any feature spec change triggers pipeline
+  workflow_dispatch:                    # manual trigger from GitHub UI
+    inputs:
+      feature:
+        description: "Feature name (e.g. login)"
+        required: true
+        default: "login"
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ai-qe-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-pipeline:
+    name: Run AI-QE Agent Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30              # full pipeline with TPM delays ~10-15 min
+
+    steps:
+      # ── Checkout ───────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── Python setup ───────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          pip install groq pyyaml requests pytest pytest-html
+
+      # ── Detect which feature changed ────────────────────────
+      # If triggered by push, extract feature name from changed file.
+      # If triggered manually, use the workflow_dispatch input.
+      - name: Detect feature name
+        id: feature
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FEATURE="${{ github.event.inputs.feature }}"
+          else
+            # Get the changed FEATURES.md file from the push
+            CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'requirements/*_FEATURES.md' | head -1)
+            # Extract feature name: requirements/LOGIN_FEATURES.md → login
+            FEATURE=$(basename "$CHANGED" _FEATURES.md | tr '[:upper:]' '[:lower:]')
+          fi
+          echo "name=$FEATURE" >> $GITHUB_OUTPUT
+          echo "Feature detected: $FEATURE"
+
+      # ── Validate inputs exist ───────────────────────────────
+      - name: Validate feature spec exists
+        run: |
+          FEATURE="${{ steps.feature.outputs.name }}"
+          SPEC="requirements/${FEATURE^^}_FEATURES.md"
+          OPENAPI="requirements/openapi.json"
+
+          if [ ! -f "$SPEC" ]; then
+            echo "✗ Spec not found: $SPEC"
+            exit 1
+          fi
+          if [ ! -f "$OPENAPI" ]; then
+            echo "✗ openapi.json not found: $OPENAPI"
+            exit 1
+          fi
+          echo "✓ Spec: $SPEC"
+          echo "✓ OpenAPI: $OPENAPI"
+
+      # ── Create required directories ─────────────────────────
+      - name: Create pipeline directories
+        run: |
+          mkdir -p agent_memory human_review logs \
+                   ratings tests/test_cases tests/api
+
+      # ── Run the full pipeline ───────────────────────────────
+      - name: Run OrchestratorAgent
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          FEATURE="${{ steps.feature.outputs.name }}"
+          echo "Starting pipeline for feature: $FEATURE"
+
+          python -m agents.orchestrator.orchestrator_agent \
+            --feature "$FEATURE" \
+            --spec "requirements/${FEATURE^^}_FEATURES.md" \
+            --openapi "requirements/openapi.json" \
+            --conftest "tests/conftest.py"
+
+      # ── Verify outputs ──────────────────────────────────────
+      - name: Verify pipeline outputs
+        run: |
+          FEATURE="${{ steps.feature.outputs.name }}"
+          ENRICHED="tests/test_cases/${FEATURE}.enriched.md"
+          TESTS="tests/api/test_${FEATURE}_api.py"
+          RATINGS="ratings/${FEATURE}_ratings.json"
+
+          echo "Checking outputs..."
+          [ -f "$ENRICHED" ] && echo "✓ $ENRICHED" || (echo "✗ $ENRICHED missing" && exit 1)
+          [ -f "$TESTS"    ] && echo "✓ $TESTS"    || (echo "✗ $TESTS missing" && exit 1)
+          [ -f "$RATINGS"  ] && echo "✓ $RATINGS"  || (echo "✗ $RATINGS missing" && exit 1)
+
+          echo ""
+          echo "=== Smoke test count ==="
+          grep -c "@pytest.mark.smoke" "$TESTS" || echo "0 smoke tests"
+
+          echo ""
+          echo "=== Rejected scenarios ==="
+          python -c "
+          import json
+          with open('$RATINGS') as f:
+              r = json.load(f)
+          print(f\"  Pass: {r['pass_count']} | Reject: {r['reject_count']} | Rate: {r['pass_rate']}%\")
+          "
+
+      # ── Upload pipeline artifacts ───────────────────────────
+      - name: Upload pipeline artifacts
+        if: always()                   # upload even on failure for debugging
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-run-${{ steps.feature.outputs.name }}-${{ github.run_number }}
+          retention-days: 14
+          path: |
+            logs/
+            tests/test_cases/
+            ratings/
+            human_review/
+
+      # ── Commit generated test file back to repo ─────────────
+      # Only commits if the test file actually changed
+      - name: Commit generated tests
+        if: success()
+        run: |
+          FEATURE="${{ steps.feature.outputs.name }}"
+          TEST_FILE="tests/api/test_${FEATURE}_api.py"
+          MANIFEST="tests/api/test_${FEATURE}_manifest.json"
+          ENRICHED="tests/test_cases/${FEATURE}.enriched.md"
+
+          git config user.name  "AI-QE Pipeline Bot"
+          git config user.email "ai-qe-bot@testmart.local"
+
+          git add "$TEST_FILE" "$MANIFEST" "$ENRICHED" || true
+          git add "ratings/" "tests/test_cases/" || true
+
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit — test file unchanged"
+          else
+            git commit -m "chore(ai-qe): regenerate $FEATURE tests [skip ci]" \
+              -m "Feature  : $FEATURE" \
+              -m "Run      : ${{ github.run_number }}" \
+              -m "Trigger  : ${{ github.event_name }}" \
+              -m "Agent    : OrchestratorAgent 5 agents" \
+              -m "Model    : llama-3.3-70b / llama-3.1-8b (Groq)"
+            git push
+            echo "✓ Committed generated tests"
+          fi
+
+      # ── Pipeline summary ────────────────────────────────────
+      - name: Write job summary
+        if: always()
+        run: |
+          FEATURE="${{ steps.feature.outputs.name }}"
+          echo "## AI-QE Pipeline — $FEATURE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Find the latest run log
+          LOG=$(find logs -name "pipeline_summary.log" | sort | tail -1)
+          if [ -f "$LOG" ]; then
+            echo "### Pipeline result" >> $GITHUB_STEP_SUMMARY
+            python -c "
+          import json, sys
+          with open('$LOG') as f:
+              s = json.load(f)
+          print(f\"| Field | Value |\")
+          print(f\"|-------|-------|\")
+          print(f\"| Status | {s['final_status']} |\")
+          print(f\"| Duration | {s['duration_sec']}s |\")
+          print(f\"| Human review items | {s['human_review_items']} |\")
+          print()
+          print('### Agent results')
+          print('| Agent | Status | Confidence | Duration |')
+          print('|-------|--------|------------|----------|')
+          for a in s['agents']:
+              print(f\"| {a['name']} | {a['status']} | {a['confidence']:.2f} | {a['duration_sec']}s |\")
+          " >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Run tests" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "pytest tests/api/test_${FEATURE}_api.py -v -m smoke" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
