@@ -1,0 +1,194 @@
+# ============================================================
+# TestMart AI-QE Pipeline — Run Tests
+# ============================================================
+#
+# Triggers:
+#   - After ai_qe_pipeline workflow completes successfully
+#   - Push to tests/api/test_*.py directly
+#   - Manual trigger
+#
+# Starts the TestMart backend (Node + MongoDB), seeds test
+# users, then runs the full pytest suite.
+# ============================================================
+
+name: Run QE Tests
+
+on:
+  workflow_run:
+    workflows: ["AI-QE Pipeline"]
+    types: [completed]
+  push:
+    paths:
+      - "tests/api/test_*.py"
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: "Feature to test (e.g. login)"
+        required: true
+        default: "login"
+      marker:
+        description: "pytest marker to run"
+        required: false
+        default: "smoke"
+
+concurrency:
+  group: run-qe-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    name: Run pytest suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Only run if the triggering pipeline succeeded (or if triggered manually/by push)
+    if: |
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # ── Checkout ───────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Node.js + backend ──────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Start TestMart backend
+        working-directory: backend
+        env:
+          PORT: 5001
+          MONGO_URI: mongodb://localhost:27017/mywebapp
+          JWT_SECRET: ci_jwt_secret_key
+          REFRESH_SECRET: ci_refresh_secret
+          STRIPE_SECRET_KEY: sk_test_placeholder
+        run: |
+          node server.js &
+          echo "Backend PID: $!"
+          # Wait for backend to be ready
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:5001/health > /dev/null 2>&1; then
+              echo "✓ Backend ready"
+              break
+            fi
+            echo "  Waiting for backend... ($i/15)"
+            sleep 2
+          done
+
+      - name: Seed test users
+        working-directory: backend
+        env:
+          MONGO_URI: mongodb://localhost:27017/mywebapp
+        run: node seedUser.js
+
+      # ── Python + pytest ────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-html requests
+
+      # ── Detect feature ─────────────────────────────────────
+      - name: Detect feature and marker
+        id: test_config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FEATURE="${{ github.event.inputs.feature }}"
+            MARKER="${{ github.event.inputs.marker }}"
+          else
+            # Detect from changed test files or default to login
+            CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'tests/api/test_*.py' | head -1)
+            if [ -n "$CHANGED" ]; then
+              FEATURE=$(basename "$CHANGED" _api.py | sed 's/test_//')
+            else
+              FEATURE="login"
+            fi
+            MARKER="smoke"
+          fi
+          echo "feature=$FEATURE"  >> $GITHUB_OUTPUT
+          echo "marker=$MARKER"    >> $GITHUB_OUTPUT
+          echo "Test config: feature=$FEATURE marker=$MARKER"
+
+      # ── Run smoke tests ────────────────────────────────────
+      - name: Run smoke tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          FEATURE="${{ steps.test_config.outputs.feature }}"
+          MARKER="${{ steps.test_config.outputs.marker }}"
+          TEST_FILE="tests/api/test_${FEATURE}_api.py"
+
+          if [ ! -f "$TEST_FILE" ]; then
+            echo "✗ Test file not found: $TEST_FILE"
+            exit 1
+          fi
+
+          echo "Running: pytest $TEST_FILE -v -m $MARKER"
+          pytest "$TEST_FILE" \
+            -v \
+            -m "$MARKER" \
+            --html=report.html \
+            --self-contained-html \
+            --tb=short \
+            -q
+
+      # ── Run regression tests (non-blocking) ───────────────
+      - name: Run regression tests
+        if: success()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          FEATURE="${{ steps.test_config.outputs.feature }}"
+          TEST_FILE="tests/api/test_${FEATURE}_api.py"
+
+          echo "Running: pytest $TEST_FILE -v -m regression"
+          pytest "$TEST_FILE" \
+            -v \
+            -m "regression" \
+            --tb=short \
+            -q || echo "Some regression tests failed — check report"
+
+      # ── Upload test report ─────────────────────────────────
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-${{ steps.test_config.outputs.feature }}-${{ github.run_number }}
+          retention-days: 14
+          path: report.html
+
+      # ── Job summary ────────────────────────────────────────
+      - name: Write test summary
+        if: always()
+        run: |
+          FEATURE="${{ steps.test_config.outputs.feature }}"
+          echo "## QE Test Results — $FEATURE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Feature | $FEATURE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | localhost:5001 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Report  | pytest-report artifact |" >> $GITHUB_STEP_SUMMARY
