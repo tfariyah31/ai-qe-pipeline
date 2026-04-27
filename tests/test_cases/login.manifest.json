@@ -1,6 +1,6 @@
 {
   "feature_name": "login",
-  "total_scenarios": 10,
+  "total_scenarios": 9,
   "scenarios": [
     {
       "title": "Successful login",
@@ -13,8 +13,15 @@
       "title": "Invalid login credentials",
       "tag": "@regression",
       "endpoint": "POST /api/auth/login",
-      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "spec_source": "Account lockout after 3 failed login attempts (5 minute lock)",
       "type": "negative"
+    },
+    {
+      "title": "Missing login credentials",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/login",
+      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "type": "edge_case"
     },
     {
       "title": "Account lockout after 3 failed login attempts",
@@ -24,58 +31,43 @@
       "type": "edge_case"
     },
     {
-      "title": "Successful registration",
-      "tag": "@smoke",
-      "endpoint": "POST /api/auth/register",
-      "spec_source": "The application uses JWT-based authentication with security best practices.",
-      "type": "happy_path"
-    },
-    {
-      "title": "Duplicate registration",
-      "tag": "@regression",
-      "endpoint": "POST /api/auth/register",
-      "spec_source": "The application uses JWT-based authentication with security best practices.",
-      "type": "negative"
-    },
-    {
       "title": "Successful logout",
       "tag": "@smoke",
       "endpoint": "POST /api/auth/logout",
-      "spec_source": "The application uses JWT-based authentication with security best practices.",
+      "spec_source": "The system enforces role permissions using backend middleware.",
       "type": "happy_path"
     },
     {
       "title": "Logout without being logged in",
       "tag": "@regression",
       "endpoint": "POST /api/auth/logout",
+      "spec_source": "The system enforces role permissions using backend middleware.",
+      "type": "negative"
+    },
+    {
+      "title": "Refresh token without being logged in",
+      "tag": "@regression",
+      "endpoint": "POST /api/auth/refresh",
       "spec_source": "The application uses JWT-based authentication with security best practices.",
       "type": "negative"
     },
     {
-      "title": "Successful token refresh",
+      "title": "Successful refresh token",
       "tag": "@smoke",
       "endpoint": "POST /api/auth/refresh",
       "spec_source": "The application uses JWT-based authentication with security best practices.",
       "type": "happy_path"
     },
     {
-      "title": "Invalid token refresh",
+      "title": "Refresh token with invalid refresh token",
       "tag": "@regression",
       "endpoint": "POST /api/auth/refresh",
       "spec_source": "The application uses JWT-based authentication with security best practices.",
       "type": "negative"
-    },
-    {
-      "title": "Token refresh without a refresh token",
-      "tag": "@regression",
-      "endpoint": "POST /api/auth/refresh",
-      "spec_source": "The application uses JWT-based authentication with security best practices.",
-      "type": "edge_case"
     }
   ],
-  "confidence": 0.8,
+  "confidence": 0.85,
   "flagged": [
-    "Ambiguous account lockout behavior",
-    "Lack of details on role-based access control implementation"
+    "Ambiguous account lockout behavior"
   ]
 }

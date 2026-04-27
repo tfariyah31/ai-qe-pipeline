@@ -1,64 +1,69 @@
+
 # Language: en
-Feature: Login
+# Feature: Login
 
-  Scenario: Successful login
-    Given I have a valid username and password
-    When I POST to /api/auth/login
-    Then the response status code should be 200
-    And the response should include a valid access token
+@smoke
+Scenario: Successful login
+  Given I have a valid user account
+  When I POST to /api/auth/login
+  Then the response status code should be 200
+  And the response should include an access token
 
-  Scenario: Invalid login credentials
-    Given I have an invalid username or password
-    When I POST to /api/auth/login
-    Then the response status code should be 401
-    And the response should include an error message
+@regression
+Scenario: Invalid login credentials
+  Given I have an invalid user account
+  When I POST to /api/auth/login
+  Then the response status code should be 401
+  And the response should include an error message
 
-  Scenario: Account lockout after 3 failed login attempts
-    Given I have a valid username and password
-    And I have failed to login 3 times
-    When I POST to /api/auth/login
-    Then the response status code should be 423
-    And the response should include an account lockout error message
+@regression
+Scenario: Missing login credentials
+  Given I have no user account details
+  When I POST to /api/auth/login
+  Then the response status code should be 400
+  And the response should include an error message
 
-  Scenario: Successful registration
-    Given I have a valid username and password
-    When I POST to /api/auth/register
-    Then the response status code should be 201
-    And the response should include a success message
+@regression
+Scenario: Account lockout after 3 failed login attempts
+  Given I have a valid user account
+  And I have attempted to login 3 times with incorrect credentials
+  When I POST to /api/auth/login
+  Then the response status code should be 423
+  And the response should include an account lockout error message
 
-  Scenario: Duplicate registration
-    Given I have a valid username and password
-    And the username is already registered
-    When I POST to /api/auth/register
-    Then the response status code should be 400
-    And the response should include a duplicate registration error message
+@smoke
+Scenario: Successful logout
+  Given I am logged in
+  When I POST to /api/auth/logout
+  Then the response status code should be 200
+  And the response should not include an access token
 
-  Scenario: Successful logout
-    Given I am logged in
-    When I POST to /api/auth/logout
-    Then the response status code should be 200
-    And the response should include a success message
+@regression
+Scenario: Logout without being logged in
+  Given I am not logged in
+  When I POST to /api/auth/logout
+  Then the response status code should be 401
+  And the response should include an error message
 
-  Scenario: Logout without being logged in
-    Given I am not logged in
-    When I POST to /api/auth/logout
-    Then the response status code should be 401
-    And the response should include an error message
+@regression
+Scenario: Refresh token without being logged in
+  Given I am not logged in
+  When I POST to /api/auth/refresh
+  Then the response status code should be 401
+  And the response should include an error message
 
-  Scenario: Successful token refresh
-    Given I have a valid refresh token
-    When I POST to /api/auth/refresh
-    Then the response status code should be 200
-    And the response should include a new access token
+@smoke
+Scenario: Successful refresh token
+  Given I am logged in
+  And my access token is expired
+  When I POST to /api/auth/refresh
+  Then the response status code should be 200
+  And the response should include a new access token
 
-  Scenario: Invalid token refresh
-    Given I have an invalid refresh token
-    When I POST to /api/auth/refresh
-    Then the response status code should be 401
-    And the response should include an error message
-
-  Scenario: Token refresh without a refresh token
-    Given I do not have a refresh token
-    When I POST to /api/auth/refresh
-    Then the response status code should be 401
-    And the response should include an error message
+@regression
+Scenario: Refresh token with invalid refresh token
+  Given I am logged in
+  And I have an invalid refresh token
+  When I POST to /api/auth/refresh
+  Then the response status code should be 401
+  And the response should include an error message

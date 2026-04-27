@@ -1,10 +1,10 @@
 {
   "feature_name": "login",
-  "run_id": "20260412_001213",
-  "total_scored": 10,
-  "pass_count": 8,
+  "run_id": "20260427_152246",
+  "total_scored": 9,
+  "pass_count": 7,
   "reject_count": 2,
-  "pass_rate": 80.0,
+  "pass_rate": 77.8,
   "scenarios": [
     {
       "title": "Successful login",
@@ -18,11 +18,11 @@
         "assertion_specificity": 4.0
       },
       "justifications": {
-        "business_impact": "The scenario impacts authentication, which is critical to the business as indicated by the RISK [MEDIUM] label, and failure here could lead to revenue loss or authentication downtime.",
-        "frequency_of_use": "The scenario is likely to be used frequently by real users, as indicated by the step 'When I POST to /api/auth/login', which suggests a common user action.",
-        "failure_probability": "The scenario's failure probability is moderate, as the step 'Given I have a valid username and password' implies a straightforward authentication process, but the AMBIGUOUS notes suggest some uncertainty in the implementation.",
-        "dependency_impact": "The scenario's dependency impact is high, as the step 'And the response should include a valid access token' implies that multiple features, such as role-based access control, rely on successful authentication.",
-        "assertion_specificity": "The scenario's assertion specificity is high, as the steps 'Then the response status code should be 200' and 'And the response should include a valid access token' provide precise expectations for the response."
+        "business_impact": "The scenario is critical for the business as a failed login process can prevent users from accessing the application, as indicated by the Given step that assumes a valid user account.",
+        "frequency_of_use": "The frequency of use is high because the When step implies that users will be posting to the /api/auth/login endpoint regularly to access the application.",
+        "failure_probability": "The failure probability is moderate due to the ambiguity in account lockout behavior after 3 failed login attempts, which is not addressed in the Given, When, or Then steps.",
+        "dependency_impact": "The dependency impact is high because the successful login process likely affects multiple features that rely on user authentication, as suggested by the need for an access token in the Then step.",
+        "assertion_specificity": "The assertion specificity is high because the Then step checks for a specific response status code of 200 and the inclusion of an access token in the response."
       },
       "weighted_score": 4.255,
       "verdict": "pass",
@@ -35,22 +35,46 @@
       "endpoint": "POST /api/auth/login",
       "human_override": false,
       "scores": {
-        "business_impact": 5.0,
-        "frequency_of_use": 4.0,
+        "business_impact": 4.0,
+        "frequency_of_use": 3.0,
+        "failure_probability": 4.0,
+        "dependency_impact": 3.0,
+        "assertion_specificity": 4.0
+      },
+      "justifications": {
+        "business_impact": "The business impact is high because authentication is crucial for the application, as indicated by the RISK [MEDIUM] for Authentication and session management.",
+        "frequency_of_use": "The frequency of use is moderate because users may occasionally enter invalid login credentials, as shown in the scenario where I have an invalid user account.",
+        "failure_probability": "The failure probability is high because the scenario involves an invalid user account, which may lead to errors, and the specification has ambiguities regarding account lockout after 3 failed login attempts.",
+        "dependency_impact": "The dependency impact is moderate because the authentication endpoint is used by multiple features, but the scenario only affects the login functionality, as indicated by the POST to /api/auth/login.",
+        "assertion_specificity": "The assertion specificity is high because the Then steps specify an exact response status code of 401 and include an error message, providing clear expectations for the response."
+      },
+      "weighted_score": 3.6,
+      "verdict": "pass",
+      "priority": "P2",
+      "rejection_reason": null,
+      "vague_assertion": false
+    },
+    {
+      "title": "Missing login credentials",
+      "endpoint": "POST /api/auth/login",
+      "human_override": false,
+      "scores": {
+        "business_impact": 4.0,
+        "frequency_of_use": 5.0,
         "failure_probability": 3.0,
         "dependency_impact": 4.0,
         "assertion_specificity": 4.0
       },
       "justifications": {
-        "business_impact": "The scenario impacts authentication, which is critical to the business as indicated by the RISK [MEDIUM]: Authentication, and a failure here could lead to auth being down.",
-        "frequency_of_use": "The scenario is likely to occur frequently as users may often enter invalid login credentials, as implied by the Given step that assumes an invalid username or password.",
-        "failure_probability": "The scenario's failure probability is moderate because the authentication mechanism, although critical, is a relatively stable component as indicated by the RISK [MEDIUM]: Authentication, and the scenario does not involve complex or frequently changing logic.",
-        "dependency_impact": "The scenario's dependency impact is high because if the authentication fails, it may affect multiple features that rely on successful authentication, such as role-based access control, as hinted at by the AMBIGUOUS note on its implementation.",
-        "assertion_specificity": "The scenario's assertion specificity is high because the Then steps clearly specify that the response status code should be 401 and include an error message, providing precise conditions to verify."
+        "business_impact": "The business impact is high because authentication is crucial for the application, as indicated by the RISK [MEDIUM] for Authentication and session management.",
+        "frequency_of_use": "The frequency of use is high because users will likely attempt to log in every session, as implied by the scenario's focus on the login endpoint.",
+        "failure_probability": "The failure probability is moderate because the scenario involves a common error case, but the application's behavior is relatively straightforward, as shown in the Given and When steps.",
+        "dependency_impact": "The dependency impact is high because authentication affects many features, as suggested by the RISK [MEDIUM] for Role-based access control and the importance of authentication in the application.",
+        "assertion_specificity": "The assertion specificity is high because the Then steps specify an exact response status code and the inclusion of an error message, providing clear expectations for the response."
       },
-      "weighted_score": 4.036,
+      "weighted_score": 3.982,
       "verdict": "pass",
-      "priority": "P1",
+      "priority": "P2",
       "rejection_reason": null,
       "vague_assertion": false
     },
@@ -62,65 +86,17 @@
         "business_impact": 4.0,
         "frequency_of_use": 3.0,
         "failure_probability": 4.0,
-        "dependency_impact": 3.0,
+        "dependency_impact": 4.0,
         "assertion_specificity": 4.0
       },
       "justifications": {
-        "business_impact": "The business impact is high because a failure in account lockout after 3 failed login attempts could lead to unauthorized access, as indicated by the scenario's focus on authentication security.",
-        "frequency_of_use": "The frequency of use is moderate because while login attempts are common, the specific scenario of 3 failed login attempts is less frequent, as implied by the given condition 'I have failed to login 3 times'.",
-        "failure_probability": "The failure probability is high because the scenario involves a complex security feature, account lockout, which may be prone to errors, as hinted at by the ambiguous specification of account lockout behavior.",
-        "dependency_impact": "The dependency impact is moderate because while the account lockout feature is important, its failure may not directly affect other features, as suggested by the isolation of the scenario to the login endpoint.",
-        "assertion_specificity": "The assertion specificity is high because the then steps clearly specify the expected response status code '423' and the inclusion of an 'account lockout error message', providing precise conditions to verify."
+        "business_impact": "The business impact is high because authentication and session management is a critical aspect of the application, as indicated by the RISK [MEDIUM] label, and a failure here could lead to security vulnerabilities.",
+        "frequency_of_use": "The frequency of use is moderate because while users may not frequently attempt to login with incorrect credentials three times, the login endpoint is a common entry point for users, as seen in the scenario steps starting with 'Given I have a valid user account'.",
+        "failure_probability": "The failure probability is high because the scenario involves a specific edge case of three failed login attempts, which may not be thoroughly tested or handled, as hinted at by the AMBIGUOUS specification note.",
+        "dependency_impact": "The dependency impact is high because the account lockout mechanism likely affects multiple features, such as user account management and role-based access control, which are also labeled as RISK [MEDIUM].",
+        "assertion_specificity": "The assertion specificity is high because the Then steps clearly specify the expected response status code and error message, as seen in 'Then the response status code should be 423' and 'And the response should include an account lockout error message'."
       },
-      "weighted_score": 3.6,
-      "verdict": "pass",
-      "priority": "P2",
-      "rejection_reason": null,
-      "vague_assertion": false
-    },
-    {
-      "title": "Successful registration",
-      "endpoint": "POST /api/auth/register",
-      "human_override": false,
-      "scores": {
-        "business_impact": 4.0,
-        "frequency_of_use": 4.0,
-        "failure_probability": 3.0,
-        "dependency_impact": 3.0,
-        "assertion_specificity": 2.0
-      },
-      "justifications": {
-        "business_impact": "The business impact is high because a failed registration process can prevent users from accessing the application, as seen in the scenario where a valid username and password are provided.",
-        "frequency_of_use": "The frequency of use is high because users will likely register at the beginning of their interaction with the application, as indicated by the Given step where a valid username and password are provided.",
-        "failure_probability": "The failure probability is moderate because the scenario involves a simple registration process with a valid username and password, but the implementation details of the registration process are not provided.",
-        "dependency_impact": "The dependency impact is moderate because a failed registration process may affect other authentication-related features, such as login, as implied by the endpoint /api/auth/register.",
-        "assertion_specificity": "The assertion specificity is low because the Then steps only check for a generic success message and a 201 status code, without verifying any specific details about the registration process."
-      },
-      "weighted_score": 3.4,
-      "verdict": "pass",
-      "priority": "P2",
-      "rejection_reason": null,
-      "vague_assertion": true
-    },
-    {
-      "title": "Duplicate registration",
-      "endpoint": "POST /api/auth/register",
-      "human_override": false,
-      "scores": {
-        "business_impact": 4.0,
-        "frequency_of_use": 3.0,
-        "failure_probability": 2.0,
-        "dependency_impact": 2.0,
-        "assertion_specificity": 5.0
-      },
-      "justifications": {
-        "business_impact": "The business impact is high because a duplicate registration could lead to authentication issues, as cited in the RISK [MEDIUM]: Authentication, and potentially allow unauthorized access to user accounts.",
-        "frequency_of_use": "The frequency of use is moderate because users may occasionally attempt to register with an existing username, as described in the Given step where the username is already registered.",
-        "failure_probability": "The failure probability is relatively low because the scenario involves a straightforward registration attempt with a duplicate username, as outlined in the When step where the user POSTs to /api/auth/register.",
-        "dependency_impact": "The dependency impact is low to moderate because the registration process may affect other authentication-related features, but the impact is contained within the authentication module, as implied by the RISK [MEDIUM]: Authentication.",
-        "assertion_specificity": "The assertion specificity is high because the Then steps clearly specify that the response status code should be 400 and include a duplicate registration error message, providing precise criteria for the expected outcome."
-      },
-      "weighted_score": 3.036,
+      "weighted_score": 3.782,
       "verdict": "pass",
       "priority": "P2",
       "rejection_reason": null,
@@ -138,11 +114,11 @@
         "assertion_specificity": 4.0
       },
       "justifications": {
-        "business_impact": "The business impact is high because a failed logout could lead to unauthorized access, as stated in the RISK [MEDIUM]: Authentication context.",
-        "frequency_of_use": "The frequency of use is high because the scenario starts with 'I am logged in', implying that this is a common user flow that occurs every session.",
-        "failure_probability": "The failure probability is relatively low because the scenario involves a simple POST request to a single endpoint, /api/auth/logout, which is a straightforward operation.",
-        "dependency_impact": "The dependency impact is moderate because a failure in the logout process could affect other authentication-related features, but it is not explicitly stated to have a cascading effect on all features.",
-        "assertion_specificity": "The assertion specificity is high because the Then steps specify that 'the response status code should be 200' and 'the response should include a success message', which are precise and exact checks."
+        "business_impact": "The business impact is high because a failed logout could lead to unauthorized access, as seen in the Given step where the user is logged in.",
+        "frequency_of_use": "The frequency of use is high because users will likely log out every session, as implied by the When step where the user posts to the logout endpoint.",
+        "failure_probability": "The failure probability is relatively low because the scenario involves a simple logout operation, as described in the When step where the user posts to /api/auth/logout.",
+        "dependency_impact": "The dependency impact is moderate because a failed logout could affect other features that rely on proper session management, such as the Given step where the user is logged in.",
+        "assertion_specificity": "The assertion specificity is high because the Then steps check for a specific response status code and the absence of an access token, providing clear criteria for success."
       },
       "weighted_score": 3.564,
       "verdict": "pass",
@@ -157,73 +133,25 @@
       "scores": {
         "business_impact": 2.0,
         "frequency_of_use": 1.0,
-        "failure_probability": 2.0,
-        "dependency_impact": 1.0,
+        "failure_probability": 3.0,
+        "dependency_impact": 2.0,
         "assertion_specificity": 4.0
       },
       "justifications": {
-        "business_impact": "The business impact is moderate because a failure in this scenario would not directly affect revenue, but could impact user experience, as seen in the step 'Given I am not logged in'.",
-        "frequency_of_use": "The frequency of use is low because this scenario occurs when a user attempts to log out without being logged in, which is not a common use case, as indicated by the step 'Given I am not logged in'.",
-        "failure_probability": "The failure probability is moderate because the scenario involves a simple authentication check, as shown in the step 'When I POST to /api/auth/logout', which has a relatively low chance of breaking.",
-        "dependency_impact": "The dependency impact is low because this scenario is isolated to the logout functionality and does not affect other features, as seen in the step 'Then the response status code should be 401'.",
-        "assertion_specificity": "The assertion specificity is high because the scenario checks for a specific response status code and an error message, as shown in the steps 'Then the response status code should be 401' and 'And the response should include an error message'."
+        "business_impact": "The business impact is moderate because a failure in this scenario would not directly affect revenue, but could still cause issues with user experience, as seen in the step 'Given I am not logged in'.",
+        "frequency_of_use": "The frequency of use is low because the scenario 'Given I am not logged in' implies that this is an edge case that real users would rarely encounter.",
+        "failure_probability": "The failure probability is moderate because the scenario involves a specific edge case, and the system's behavior in this case may not be as thoroughly tested as other, more common cases, as indicated by the step 'When I POST to /api/auth/logout'.",
+        "dependency_impact": "The dependency impact is moderate because a failure in this scenario could potentially affect other authentication-related features, but would not have a cascading effect on the entire system, as suggested by the endpoint '/api/auth/logout'.",
+        "assertion_specificity": "The assertion specificity is high because the Then steps 'the response status code should be 401' and 'the response should include an error message' provide precise expectations for the response."
       },
-      "weighted_score": 1.782,
+      "weighted_score": 2.2,
       "verdict": "reject",
       "priority": null,
-      "rejection_reason": "Score 1.78 below 3.0 threshold",
+      "rejection_reason": "Score 2.20 below 3.0 threshold",
       "vague_assertion": false
     },
     {
-      "title": "Successful token refresh",
-      "endpoint": "POST /api/auth/refresh",
-      "human_override": false,
-      "scores": {
-        "business_impact": 5.0,
-        "frequency_of_use": 5.0,
-        "failure_probability": 3.0,
-        "dependency_impact": 4.0,
-        "assertion_specificity": 4.0
-      },
-      "justifications": {
-        "business_impact": "The business_impact score is 5.0 because authentication is a critical aspect of the application, as indicated by the RISK [MEDIUM]: Authentication, and failure here could break the business.",
-        "frequency_of_use": "The frequency_of_use score is 5.0 because the scenario involves a POST to /api/auth/refresh, which is likely to occur every session as users need to refresh their tokens to maintain access.",
-        "failure_probability": "The failure_probability score is 3.0 because the scenario involves a relatively stable authentication mechanism, but the AMBIGUOUS specification regarding account lockout and role-based access control introduces some uncertainty.",
-        "dependency_impact": "The dependency_impact score is 4.0 because the authentication mechanism is likely to be used by multiple features, and failure here could impact several aspects of the application, as hinted by the RISK [MEDIUM]: Authentication.",
-        "assertion_specificity": "The assertion_specificity score is 4.0 because the Then steps specify that the response status code should be 200 and include a new access token, providing a clear and exact expectation for the response."
-      },
-      "weighted_score": 4.255,
-      "verdict": "pass",
-      "priority": "P1",
-      "rejection_reason": null,
-      "vague_assertion": false
-    },
-    {
-      "title": "Invalid token refresh",
-      "endpoint": "POST /api/auth/refresh",
-      "human_override": false,
-      "scores": {
-        "business_impact": 4.0,
-        "frequency_of_use": 3.0,
-        "failure_probability": 3.5,
-        "dependency_impact": 4.0,
-        "assertion_specificity": 4.0
-      },
-      "justifications": {
-        "business_impact": "The business impact is high because authentication is a critical component, as indicated by the RISK [MEDIUM]: Authentication, and a failure here could break the business.",
-        "frequency_of_use": "The frequency of use is moderate because while users may not constantly refresh their tokens, it is a necessary step for maintaining an active session, as implied by the need for a refresh endpoint.",
-        "failure_probability": "The failure probability is moderate to high because the scenario involves an invalid refresh token, which could be due to various reasons such as token expiration or tampering, and the system's ability to handle such tokens is being tested.",
-        "dependency_impact": "The dependency impact is high because if the token refresh mechanism fails, it could affect multiple features that rely on authenticated sessions, such as protected routes and user-specific data.",
-        "assertion_specificity": "The assertion specificity is high because the Then steps clearly specify that the response status code should be 401 and include an error message, providing precise expectations for the scenario's outcome."
-      },
-      "weighted_score": 3.664,
-      "verdict": "pass",
-      "priority": "P2",
-      "rejection_reason": null,
-      "vague_assertion": false
-    },
-    {
-      "title": "Token refresh without a refresh token",
+      "title": "Refresh token without being logged in",
       "endpoint": "POST /api/auth/refresh",
       "human_override": false,
       "scores": {
@@ -234,24 +162,68 @@
         "assertion_specificity": 4.0
       },
       "justifications": {
-        "business_impact": "The business impact is high because authentication is a critical feature, as indicated by the RISK [MEDIUM]: Authentication, and a failure here could break the business.",
-        "frequency_of_use": "The frequency of use is moderate because users may occasionally attempt to refresh their token without a refresh token, but it is not a common use case, as suggested by the scenario's specific condition of not having a refresh token.",
-        "failure_probability": "The failure probability is moderate because the scenario tests a specific error condition, and the implementation of token refresh without a refresh token may not be as stable as other authentication flows, given the ambiguity in the specification.",
-        "dependency_impact": "The dependency impact is moderate because the token refresh endpoint is a specific feature that may not have a wide-ranging impact on other features, but it is still part of the authentication system, which is critical to the application.",
-        "assertion_specificity": "The assertion specificity is high because the Then steps clearly specify the expected response status code and the inclusion of an error message, providing a precise definition of the expected behavior."
+        "business_impact": "The business impact is high because authentication is crucial for the application, as indicated by the RISK [MEDIUM] for authentication and session management.",
+        "frequency_of_use": "The frequency of use is moderate because users may occasionally attempt to refresh their token while not logged in, but this is not a common use case.",
+        "failure_probability": "The failure probability is moderate because the scenario involves a specific edge case, but the application's authentication mechanism is expected to handle it correctly.",
+        "dependency_impact": "The dependency impact is moderate because the refresh token endpoint is a specific feature, and its failure would primarily affect the authentication flow.",
+        "assertion_specificity": "The assertion specificity is high because the Then steps clearly specify the expected response status code and the inclusion of an error message."
       },
       "weighted_score": 2.964,
       "verdict": "reject",
       "priority": null,
       "rejection_reason": "Score 2.96 below 3.0 threshold",
       "vague_assertion": false
+    },
+    {
+      "title": "Successful refresh token",
+      "endpoint": "POST /api/auth/refresh",
+      "human_override": false,
+      "scores": {
+        "business_impact": 4.0,
+        "frequency_of_use": 4.0,
+        "failure_probability": 3.0,
+        "dependency_impact": 4.0,
+        "assertion_specificity": 4.0
+      },
+      "justifications": {
+        "business_impact": "The business impact is high because if the refresh token endpoint fails, users will be unable to access the application, as stated in the step 'And my access token is expired'.",
+        "frequency_of_use": "The frequency of use is high because users will need to refresh their tokens regularly, as implied by the step 'And my access token is expired'.",
+        "failure_probability": "The failure probability is moderate because the scenario involves a relatively simple POST request, as described in the step 'When I POST to /api/auth/refresh'.",
+        "dependency_impact": "The dependency impact is high because the refresh token endpoint is likely used by multiple features, as suggested by the need for a new access token in the step 'And the response should include a new access token'.",
+        "assertion_specificity": "The assertion specificity is high because the scenario checks for a specific response status code and includes a new access token, as stated in the steps 'Then the response status code should be 200' and 'And the response should include a new access token'."
+      },
+      "weighted_score": 3.764,
+      "verdict": "pass",
+      "priority": "P2",
+      "rejection_reason": null,
+      "vague_assertion": false
+    },
+    {
+      "title": "Refresh token with invalid refresh token",
+      "endpoint": "POST /api/auth/refresh",
+      "human_override": false,
+      "scores": {
+        "business_impact": 4.0,
+        "frequency_of_use": 3.0,
+        "failure_probability": 4.0,
+        "dependency_impact": 3.0,
+        "assertion_specificity": 4.0
+      },
+      "justifications": {
+        "business_impact": "The business impact is high because authentication is crucial for the application, as indicated by the risk context mentioning authentication and session management.",
+        "frequency_of_use": "The frequency of use is moderate because while users may not frequently attempt to refresh tokens with invalid tokens, they may do so occasionally, as implied by the given step 'I have an invalid refresh token'.",
+        "failure_probability": "The failure probability is high because the scenario involves an invalid refresh token, which is likely to cause issues, as stated in the step 'And I have an invalid refresh token'.",
+        "dependency_impact": "The dependency impact is moderate because while the authentication mechanism is critical, the impact of this specific failure is contained within the authentication flow, as seen in the step 'When I POST to /api/auth/refresh'.",
+        "assertion_specificity": "The assertion specificity is high because the then steps specify both the expected status code '401' and the inclusion of an error message, providing clear expectations for the response."
+      },
+      "weighted_score": 3.6,
+      "verdict": "pass",
+      "priority": "P2",
+      "rejection_reason": null,
+      "vague_assertion": false
     }
   ],
-  "escalated_for_human_review": [
-    "Successful registration"
-  ],
-  "confidence": 0.8,
-  "flagged": [
-    "R9: 'Successful registration' has vague assertion (specificity=2.0)"
-  ]
+  "escalated_for_human_review": [],
+  "confidence": 0.85,
+  "flagged": []
 }

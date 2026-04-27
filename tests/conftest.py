@@ -16,7 +16,7 @@ TEST_USERS = {
     "superadmin": {"email": "superadmin@test.com", "password": "Str0ng!Pass#2024", "role": "superadmin"},
     "merchant":   {"email": "merchant@test.com",   "password": "MerchantPass123!", "role": "merchant"},
     "customer":   {"email": "customer@test.com",   "password": "CustomerPass123!", "role": "customer"},
-    "blocked":    {"email": "blocked@test.com",    "password": "BlockedPass123!",  "role": "customer"},
+    "blocked_user":    {"email": "blocked@test.com",    "password": "BlockedPass123!",  "role": "customer"},
 }
 
 # ── Helpers ──────────────────────────────────────────────────

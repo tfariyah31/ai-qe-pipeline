@@ -99,7 +99,7 @@ memory:
 # Protects against 429s at the orchestrator level.
 rate_limits:
   between_agents_delay_sec: 10   # cooldown between agents
-  between_scenarios_delay_sec: 6  # cooldown between per-scenario LLM calls
+  between_scenarios_delay_sec: 15  # cooldown between per-scenario LLM calls
                                   # llama-3.3-70b = 12,000 TPM. ~1000 tok/call → 6s gap = safe
   on_429_base_wait_sec: 30       # base wait on 429 before retry
   max_retries_on_429: 3          # retries specifically for rate limit errors

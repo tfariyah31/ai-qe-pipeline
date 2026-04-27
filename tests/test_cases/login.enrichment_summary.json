@@ -1,16 +1,18 @@
 {
   "feature_name": "login",
-  "total_passing": 8,
+  "total_passing": 7,
   "total_rejected": 2,
   "tag_counts": {
     "P0": 0,
-    "P1": 3,
-    "P2": 5,
-    "smoke": 0,
-    "regression": 8
+    "P1": 1,
+    "P2": 6,
+    "smoke": 3,
+    "regression": 4
   },
   "p0_cap_enforced": false,
   "demotions": [],
   "confidence": 0.9,
-  "flagged": []
+  "flagged": [
+    "Score below threshold"
+  ]
 }

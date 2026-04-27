@@ -1,19 +1,12 @@
 {
   "feature_name": "login",
-  "feature_intent": "The application uses JWT-based authentication with security best practices, including password hashing, account lockout, rate limiting, and XSS protection. It supports three user roles: Super Admin, Merchant, and Customer, each with different capabilities and access levels.",
+  "feature_intent": "The application uses JWT-based authentication with security best practices, supporting three user roles: Super Admin, Merchant, and Customer. Each role has different capabilities and access levels.",
   "endpoints": [
     {
       "method": "POST",
       "path": "/api/auth/login",
       "summary": "Login user",
       "recommended_scenarios": 5,
-      "risk_level": "MEDIUM"
-    },
-    {
-      "method": "POST",
-      "path": "/api/auth/register",
-      "summary": "Register a new user",
-      "recommended_scenarios": 4,
       "risk_level": "MEDIUM"
     },
     {
@@ -27,41 +20,31 @@
       "method": "POST",
       "path": "/api/auth/refresh",
       "summary": "Refresh access token",
-      "recommended_scenarios": 3,
-      "risk_level": "LOW"
+      "recommended_scenarios": 4,
+      "risk_level": "MEDIUM"
     }
   ],
   "risk_areas": [
     {
-      "area": "Authentication",
+      "area": "Authentication and session management",
       "severity": "MEDIUM",
       "spec_source": "The application uses JWT-based authentication with security best practices."
     },
     {
-      "area": "Password hashing",
-      "severity": "LOW",
-      "spec_source": "Password hashing using bcryptjs"
-    },
-    {
-      "area": "Rate limiting",
-      "severity": "LOW",
-      "spec_source": "Rate limiting to prevent brute-force attacks"
+      "area": "Role-based access control",
+      "severity": "MEDIUM",
+      "spec_source": "The system enforces role permissions using backend middleware."
     }
   ],
   "ambiguous_requirements": [
     {
       "description": "The specification does not clearly define the exact behavior for account lockout after 3 failed login attempts.",
       "spec_source": "Account lockout after 3 failed login attempts (5 minute lock)"
-    },
-    {
-      "description": "The specification does not provide details on the exact implementation of role-based access control.",
-      "spec_source": "The system enforces role permissions using backend middleware."
     }
   ],
-  "recommended_total_scenarios": 15,
+  "recommended_total_scenarios": 12,
   "confidence": 0.8,
   "flagged": [
-    "Ambiguous account lockout behavior",
-    "Lack of details on role-based access control implementation"
+    "Ambiguous account lockout behavior"
   ]
 }

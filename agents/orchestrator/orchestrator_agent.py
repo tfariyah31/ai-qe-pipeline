@@ -1,5 +1,4 @@
 """
-agents/orchestrator/orchestrator_agent.py
 ==========================================
 OrchestratorAgent — Agent 6 of 6
 
@@ -18,6 +17,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 import time
 import logging
@@ -43,10 +43,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger("OrchestratorAgent")
 
+try:
+    from streamlit_app.pipeline_runner import _STOP_EVENT as _UI_STOP
+except ImportError:
+    _UI_STOP = None
 
 def load_config() -> dict:
     with open(CONFIG_PATH) as f:
         return yaml.safe_load(f)
+
+
+# ── Streamlit signal writer ───────────────────────────────────
+
+def _write_agent_done_signal(
+    agent_name: str,
+    run_id: str,
+    confidence: float = None,
+    escalated: bool = False,
+):
+    """
+    Write a small JSON signal file after each agent completes.
+    The Streamlit watcher detects these to update agent cards in real time.
+    Files are written to: logs/run_{run_id}/.signal_{agentname}
+    No-ops silently if run_id is empty (CLI-only runs unaffected).
+    """
+    if not run_id:
+        return
+    try:
+        signal_dir = Path(f"logs/run_{run_id}")
+        signal_dir.mkdir(parents=True, exist_ok=True)
+        signal_key  = agent_name.lower().replace("agent", "")
+        signal_path = signal_dir / f".signal_{signal_key}"
+        signal_path.write_text(
+            json.dumps({
+                "agent":      agent_name,
+                "confidence": confidence,
+                "escalated":  escalated,
+                "timestamp":  datetime.utcnow().isoformat(),
+            }),
+            encoding="utf-8",
+        )
+    except Exception as e:
+        # Never let signal writing crash the pipeline
+        logger.debug(f"[Orchestrator] Signal write skipped: {e}")
 
 
 # ── Pipeline runner ───────────────────────────────────────────
@@ -60,9 +99,14 @@ class OrchestratorAgent:
         self.openapi_path  = openapi_path
         self.conftest_path = conftest_path
         self.config        = load_config()
-        self.run_id        = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        self.paths         = self.config["paths"]
         self.started_at    = datetime.utcnow()
+
+        # ── Pick up run_id from Streamlit env var if present,
+        #    otherwise generate our own (CLI runs unchanged)
+        env_run_id   = os.environ.get("PIPELINE_RUN_ID", "").strip()
+        self.run_id  = env_run_id if env_run_id else self.started_at.strftime("%Y%m%d_%H%M%S")
+
+        self.paths   = self.config["paths"]
 
         # Pipeline state
         self.agent_results: list[dict] = []
@@ -83,14 +127,13 @@ class OrchestratorAgent:
         feature = self.feature_name
 
         # ── Derive paths that agents pass to each other ───────
-        spec_analysis_path     = f"requirements/{feature}_spec_analysis.json"
-        gherkin_path           = f"tests/test_cases/{feature}.test_case.md"
-        manifest_path          = f"tests/test_cases/{feature}.manifest.json"
-        ratings_path           = f"ratings/{feature}_ratings.json"
-        enriched_path          = f"tests/test_cases/{feature}.enriched.md"
+        spec_analysis_path = f"requirements/{feature}_spec_analysis.json"
+        gherkin_path       = f"tests/test_cases/{feature}.test_case.md"
+        manifest_path      = f"tests/test_cases/{feature}.manifest.json"
+        ratings_path       = f"ratings/{feature}_ratings.json"
+        enriched_path      = f"tests/test_cases/{feature}.enriched.md"
 
         # ── Define pipeline steps ─────────────────────────────
-        # Each step: (AgentClass, input_data_dict, output_files_to_verify)
         steps = [
             (
                 SpecAnalystAgent,
@@ -156,6 +199,11 @@ class OrchestratorAgent:
                     f"(TPM cooldown)..."
                 )
                 time.sleep(delay)
+                
+            if _UI_STOP and _UI_STOP.is_set():
+                logger.warning("[Orchestrator] Stop requested by UI — halting pipeline")
+                self.final_status = "STOPPED"
+                break
 
             success = self._run_step(AgentClass, input_data, output_files)
             if not success:
@@ -164,6 +212,14 @@ class OrchestratorAgent:
                     f"[Orchestrator] Pipeline HALTED at {AgentClass.__name__}"
                 )
                 break
+
+        # ── Signal OrchestratorAgent itself as done ───────────
+        _write_agent_done_signal(
+            agent_name = "OrchestratorAgent",
+            run_id     = self.run_id,
+            confidence = 1.0,
+            escalated  = False,
+        )
 
         # ── Write summary + terminal output ───────────────────
         self._write_pipeline_summary()
@@ -183,17 +239,17 @@ class OrchestratorAgent:
         Run a single agent step with retry logic.
         Returns True if step succeeded, False if all retries exhausted.
         """
-        agent_name    = AgentClass.__name__
-        agent_cfg     = self.config["agents"].get(
+        agent_name  = AgentClass.__name__
+        agent_cfg   = self.config["agents"].get(
             agent_name.lower().replace("agent", ""), {}
         )
-        max_retries   = agent_cfg.get("max_retries", 2)
-        threshold     = agent_cfg.get("confidence_threshold", 0.75)
+        max_retries = agent_cfg.get("max_retries", 2)
+        threshold   = agent_cfg.get("confidence_threshold", 0.75)
 
-        attempt      = 0
-        step_start   = time.time()
-        last_result  = None
-        last_error   = None
+        attempt     = 0
+        step_start  = time.time()
+        last_result = None
+        last_error  = None
 
         while attempt <= max_retries:
             if attempt > 0:
@@ -208,6 +264,7 @@ class OrchestratorAgent:
                 agent       = AgentClass(run_id=self.run_id)
                 last_result = agent.run(input_data)
                 confidence  = last_result.get("confidence", 0.0)
+                escalated   = last_result.get("needs_human_review", False)
 
                 # ── R4/R5: Check confidence gate ──────────────
                 if confidence >= threshold:
@@ -232,11 +289,20 @@ class OrchestratorAgent:
                     )
 
                     # ── R8: Log human review without halting ───
-                    if last_result.get("needs_human_review"):
+                    if escalated:
                         logger.warning(
                             f"[Orchestrator] ⚠ {agent_name} flagged for "
                             f"human review — pipeline continues"
                         )
+
+                    # ── Write Streamlit signal ─────────────────
+                    _write_agent_done_signal(
+                        agent_name = agent_name,
+                        run_id     = self.run_id,
+                        confidence = confidence,
+                        escalated  = escalated,
+                    )
+
                     return True
 
                 else:
@@ -248,7 +314,6 @@ class OrchestratorAgent:
                     continue
 
             except Exception as e:
-                # R9: Treat exceptions as confidence=0.0
                 last_error = str(e)
                 logger.error(f"[Orchestrator] {agent_name} exception: {e}")
                 attempt += 1
@@ -266,6 +331,14 @@ class OrchestratorAgent:
             agent_name, "failed",
             last_result or {"confidence": 0.0, "flagged": [], "needs_human_review": False},
             output_files, duration
+        )
+
+        # ── Signal failure so Streamlit card turns red ────────
+        _write_agent_done_signal(
+            agent_name = agent_name,
+            run_id     = self.run_id,
+            confidence = last_result.get("confidence", 0.0) if last_result else 0.0,
+            escalated  = True,
         )
 
         logger.error(f"[Orchestrator] ✗ {agent_name} FAILED — {error_msg}")
@@ -298,7 +371,6 @@ class OrchestratorAgent:
             (ended_at - self.started_at).total_seconds(), 2
         )
 
-        # Count human review items
         review_queue_path = Path(
             self.config["agents"]["rating_judge"]
             .get("escalation", {})
@@ -308,7 +380,6 @@ class OrchestratorAgent:
         if review_queue_path.exists():
             try:
                 queue = json.loads(review_queue_path.read_text())
-                # Count items from this run only
                 human_review_items = sum(
                     1 for item in queue
                     if item.get("run_id") == self.run_id
@@ -363,7 +434,6 @@ class OrchestratorAgent:
 
         print()
 
-        # ── R14: Human review notice ──────────────────────────
         review_queue = Path(
             self.config["agents"]["rating_judge"]
             .get("escalation", {})
@@ -371,8 +441,8 @@ class OrchestratorAgent:
         )
         if review_queue.exists():
             try:
-                queue = json.loads(review_queue.read_text())
-                this_run = [i for i in queue if i.get("run_id") == self.run_id]
+                queue     = json.loads(review_queue.read_text())
+                this_run  = [i for i in queue if i.get("run_id") == self.run_id]
                 if this_run:
                     print(f"  ⚠  {len(this_run)} item(s) awaiting human review:")
                     print(f"     → {review_queue}")
@@ -401,22 +471,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="TestMart AI-QE Pipeline Orchestrator"
     )
-    parser.add_argument(
-        "--feature", required=True,
-        help="Feature name e.g. login"
-    )
-    parser.add_argument(
-        "--spec", default=None,
-        help="Path to feature spec markdown (default: requirements/{feature}_FEATURES.md)"
-    )
-    parser.add_argument(
-        "--openapi", default="requirements/openapi.json",
-        help="Path to openapi.json"
-    )
-    parser.add_argument(
-        "--conftest", default="tests/conftest.py",
-        help="Path to conftest.py"
-    )
+    parser.add_argument("--feature", required=True, help="Feature name e.g. login")
+    parser.add_argument("--spec",    default=None,
+        help="Path to feature spec markdown (default: requirements/{feature}_FEATURES.md)")
+    parser.add_argument("--openapi", default="requirements/openapi.json",
+        help="Path to openapi.json")
+    parser.add_argument("--conftest", default="tests/conftest.py",
+        help="Path to conftest.py")
     args = parser.parse_args()
 
     feature  = args.feature.lower()
@@ -424,7 +485,6 @@ def main():
     openapi  = args.openapi
     conftest = args.conftest
 
-    # Validate spec + openapi exist before starting
     for path in [spec, openapi]:
         if not Path(path).exists():
             logger.error(f"Required file not found: {path}")

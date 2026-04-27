@@ -1,34 +1,34 @@
 """
 TestMart AI-QE Pipeline — Auto-generated pytest suite
 Feature  : Login
-Run ID   : 20260412_051118
+Run ID   : 20260427_152246
 Agent    : ScriptForgeAgent (llama-3.1-8b-instant)
 """
+from altair.datasets import data
 import pytest
 import requests
-from conftest import LOGIN_ENDPOINT
-from conftest import LOGOUT_ENDPOINT
 
 @pytest.mark.smoke
-def test_successful_login(base_url, auth_headers, test_users_data):
-    # test_users_data provides raw dict access for users
-    payload = {'email': test_users_data['superadmin']['email'], 'password': test_users_data['superadmin']['password']}
-    response = requests.post(f'{base_url}{LOGIN_ENDPOINT}', headers=auth_headers, json=payload)
+def test_successful_login(base_url, test_users_data):
+    user = test_users_data['superadmin']
+    response = requests.post(f"{base_url}/api/auth/login", json={"email": user['email'], "password": user['password']})
     assert response.status_code == 200
-    assert 'accessToken' in response.json()
+    data = response.json()
+    assert "accessToken" in data
+    assert "refreshToken" in data        
+    assert "user" in data or "userId" in data  
 
 @pytest.mark.smoke
-def test_invalid_login_credentials(base_url, test_users_data, auth_headers):
-    # test_users_data provides raw dict access for users
-    payload = {'email': test_users_data['customer']['email'], 'password': 'InvalidPassword'}
-    response = requests.post(f'{base_url}{LOGIN_ENDPOINT}', json=payload, headers=auth_headers)
-    assert response.status_code == 401
-    assert 'error' in response.json()
+def test_successful_logout(base_url, auth_headers):
+    response = requests.post(f"{base_url}/api/auth/logout", headers=auth_headers)
+    assert response.status_code == 200
+    assert 'accessToken' not in response.json()
 
 @pytest.mark.smoke
-def test_successful_token_refresh(base_url, auth_tokens):
-    # auth_tokens provides raw dict access for tokens
+def test_successful_refresh_token(base_url, auth_tokens):
     payload = {'refreshToken': auth_tokens['refreshToken']}
     response = requests.post(f'{base_url}/api/auth/refresh', json=payload)
     assert response.status_code == 200
+    assert 'success' in response.json()
     assert 'accessToken' in response.json()
+    assert 'refreshToken' in response.json()

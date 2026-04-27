@@ -58,3 +58,6 @@ Thumbs.db
 .vscode/
 .idea/
 .github/
+agent_memory/*.json
+logs/
+.signal_*
