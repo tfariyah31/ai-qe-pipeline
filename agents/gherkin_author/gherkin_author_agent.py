@@ -1,5 +1,4 @@
 """
-agents/gherkin_author/gherkin_author_agent.py
 =============================================
 GherkinAuthorAgent — Agent 2 of 6
 

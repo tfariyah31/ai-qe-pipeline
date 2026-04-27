@@ -1,5 +1,3 @@
-"""components/agent_status.py — Live agent pipeline cards"""
-
 import streamlit as st
 
 AGENT_META = {

@@ -1,5 +1,4 @@
 """
-components/results_tabs.py
 ---------------------------
 Shown after pipeline completes. Three tabs:
   1. Gherkin   — login.enriched.md

@@ -1,5 +1,4 @@
 """
-agents/script_forge/script_forge_agent.py
 ==========================================
 ScriptForgeAgent — Agent 5 of 6
 
@@ -20,16 +19,6 @@ Output:
     Decision log → logs/run_{id}/script_forge_decision.log
     Memory entry → agent_memory/script_forge_memory.json
 
-Fixes applied:
-    FIX-1: Removed LOGIN_ENDPOINT/LOGOUT_ENDPOINT injection from _assemble_pytest_file.
-            The agent was injecting the very constants R23 forbids, causing the LLM
-            to use them in generated tests.
-    FIX-2: Replaced blind openapi[:1500] slice with structured schema extraction
-            in _build_shared_context so the LLM sees real endpoint schemas.
-    FIX-3: Added _get_endpoint_schema() to inject per-endpoint response schema
-            into each scenario prompt, preventing hallucinated field assertions.
-    FIX-4: Added endpoint_schema_hint into _generate_one_test user_prompt so the
-            LLM is explicitly constrained to only assert documented fields.
 """
 
 import json

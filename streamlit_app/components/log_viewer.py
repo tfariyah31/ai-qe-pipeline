@@ -1,5 +1,3 @@
-"""components/log_viewer.py — Live scrollable log panel"""
-
 import streamlit as st
 
 LEVEL_COLOR = {

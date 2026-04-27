@@ -1,5 +1,4 @@
 """
-agents/spec_analyst/spec_analyst_agent.py
 ==========================================
 SpecAnalystAgent — Agent 1 of 6
 

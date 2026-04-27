@@ -1,5 +1,3 @@
-"""components/review_queue.py — Human review queue viewer"""
-
 import streamlit as st
 import json
 import pathlib

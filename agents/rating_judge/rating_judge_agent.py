@@ -1,5 +1,4 @@
 """
-agents/rating_judge/rating_judge_agent.py
 ==========================================
 RatingJudgeAgent — Agent 3 of 6
 

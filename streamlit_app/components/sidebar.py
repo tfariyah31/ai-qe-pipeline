@@ -1,5 +1,3 @@
-"""components/sidebar.py — Feature input + run controls"""
-
 import streamlit as st
 
 

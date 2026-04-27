@@ -1,9 +1,8 @@
 """
-agents/enrichment/enrichment_agent.py
 ======================================
 EnrichmentAgent — Agent 4 of 6
 
-REWRITE: The enriched Gherkin is now built entirely in Python by
+The enriched Gherkin is now built entirely in Python by
 matching scenario titles from ratings JSON against the original
 Gherkin file, then injecting tags + inline comments directly.
 

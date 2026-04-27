@@ -1,12 +1,3 @@
-"""
-pipeline_runner.py  (Day 2 — with Stop support)
--------------------------------------------------
-Changes from previous version:
-  - self._proc saves subprocess reference so stop() can terminate it
-  - stop() method kills subprocess and marks pipeline done
-  - Required field validation handled in sidebar
-"""
-
 import threading
 import queue
 import time
