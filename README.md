@@ -1,5 +1,5 @@
 # AI-QE Pipeline
-![Pipeline Running](AI_Agent_Orchestration-2.jpeg)
+![Pipeline Running](docs/AI_Agent_Orchestration-2.jpeg)
 
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)![Groq](https://img.shields.io/badge/Groq-LLaMA_3-F55036?style=flat)![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=flat&logo=streamlit&logoColor=white)![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
