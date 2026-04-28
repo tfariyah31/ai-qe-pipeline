@@ -1,9 +1,12 @@
-# TestMart AI-QE Pipeline
+# AI-QE Pipeline
+![Pipeline Running](AI_Agent_Orchestration-2.jpeg)
 
-> An end-to-end **AI-Orchestrated Quality Engineering System** — from feature specifications to rated, enriched, and executable pytest scripts. Six purpose-built AI agents with hard rules, skills contracts, cross-run memory, and per-run decision logs replace a linear LLM script pipeline.
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)![Groq](https://img.shields.io/badge/Groq-LLaMA_3-F55036?style=flat)![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=flat&logo=streamlit&logoColor=white)![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
+
+> **An end-to-end AI-orchestrated quality engineering system** — from a feature spec to rated, enriched, and executable pytest scripts. Six purpose-built AI agents with hard rules, capability contracts, cross-run memory, confidence gates, and a live Streamlit dashboard replace a linear LLM script pipeline.
 
 ---
-
 ## What changed
 
 The original pipeline called an LLM at each step. This version **engineers AI agents** — each agent has a defined identity, hard constraints it cannot violate, a capability contract, memory of prior runs, and an audit trail written after every execution.
@@ -18,88 +21,86 @@ The original pipeline called an LLM at each step. This version **engineers AI ag
 | Confidence | None | 0.0–1.0 gate — low confidence escalates to human review |
 | Arithmetic | LLM | Weighted formula recalculated in Python after every LLM call |
 | Rate limiting | None | Per-scenario TPM delays, 429-aware retry-after handling |
+---
+
+## Architecture
+
+```
+Feature Spec + OpenAPI Contract
+          │
+          ▼
+┌─────────────────────┐
+│  SpecAnalystAgent   │  Extracts intent, scope & risks before generation
+│  llama-3.3-70b      │
+└──────────┬──────────┘
+           │ login_spec_analysis.json
+           ▼
+┌─────────────────────┐
+│ GherkinAuthorAgent  │  Writes Gherkin scenarios — constrained by RULES.md
+│  llama-3.3-70b      │
+└──────────┬──────────┘
+           │ login.test_case.md + login.manifest.json
+           ▼
+┌─────────────────────┐
+│  RatingJudgeAgent   │  Scores 5 risk dimensions — formula recalculated in Python
+│  llama-3.1-8b       │
+└──────────┬──────────┘
+           │ login_ratings.json
+           ▼
+┌─────────────────────┐
+│  EnrichmentAgent    │  Tags @smoke/@regression, drops low-risk, reasons in writing
+│  llama-3.1-8b       │
+└──────────┬──────────┘
+           │ login.enriched.md
+           ▼
+┌─────────────────────┐
+│  ScriptForgeAgent   │  Generates executable pytest — verifies imports + assert count
+│  llama-3.1-8b       │
+└──────────┬──────────┘
+           │ tests/api/test_login_api.py
+           ▼
+┌─────────────────────┐
+│ OrchestratorAgent   │  Routes between agents, retries on failure, escalates
+│  llama-3.1-8b       │
+└──────────┬──────────┘
+           │ logs/run_{id}/pipeline_summary.log
+           ▼
+  pytest tests/api/test_login_api.py -v -m smoke
+```
 
 ---
 
-## Agent pipeline
+## Six Engineering Constructs
 
-```
-requirements/LOGIN_FEATURES.md + openapi.json
-        │
-        ▼
-[1] SpecAnalystAgent          
-Reads the feature spec and extracts intent, scope, risks before generation starts
-        │
-        │
-        │ login_spec_analysis.json
-        ▼
-[2] GherkinAuthorAgent    
-Writes Gherkin scenarios, constrained by rules 
-        │
-        │
-        │ login.test_case.md + login.manifest.json
-        ▼
-[3] RatingJudgeAgent    
-Autonomously scores scenarios using the weighted formula — human can override
-        │
-        │
-        │ login_ratings.json
-        ▼
-[4] EnrichmentAgent
-Tags, prioritizes, and decides what gets dropped — with reasoning           
-        │
-        │
-        │ login.enriched.md + login.enrichment_summary.json
-        ▼
-[5] ScriptForgeAgent          
-Generates pytest scripts with memory of past patterns
-        │
-        │
-        │ tests/api/test_login_api.py
-        ▼
-[6] OrchestratorAgent        
- Routes between agents, detects failures, retries or escalates
-        │
-        │
-        │ logs/run_{id}/pipeline_summary.log
-        ▼
-pytest tests/api/test_login_api.py -v -m smoke
-```
----
+Every agent is built with six constructs that make it auditable, bounded, and improvable — not just prompted.
 
-## The six engineering constructs
-
-Every agent is built with six constructs that make it auditable, bounded, and improvable.
-
-### 1. `RULES.md` — hard constraints
-Injected verbatim into the system prompt. Not suggestions — violations are caught. Examples:
+### 1. `RULES.md` — Hard Constraints
+Injected verbatim into the system prompt. Not suggestions — violations are caught at runtime.
 - `GherkinAuthorAgent`: never write a scenario for an endpoint not in `openapi.json`
 - `RatingJudgeAgent`: every score must include a one-sentence justification citing the scenario text
 - `ScriptForgeAgent`: never use undefined constants; always assert status code before body fields
 
-### 2. `SKILLS.md` — capability contract
-Declares what the agent can do, cannot do, its exact input/output schema, and what it writes to memory. Downstream agents know exactly what to expect. If the output schema changes, `SKILLS.md` is the source of truth.
+### 2. `SKILLS.md` — Capability Contract
+Declares exactly what the agent can do, cannot do, its input/output schema, and what it writes to memory. Downstream agents know exactly what to expect — if the output schema changes, `SKILLS.md` is the source of truth.
 
-### 3. Memory — cross-run learning
-Each agent maintains a rolling JSON store (`agent_memory/{agent}_memory.json`, max 50 entries). Examples of what persists:
-- `GherkinAuthorAgent`: recurring gaps — endpoints that were in the spec analysis but missing from prior Gherkin outputs. Injected as reminders on the next run.
-- `ScriptForgeAgent`: working import blocks, auth header patterns, fixture names that succeeded. Never reinvented from scratch.
-- `RatingJudgeAgent`: average score distribution across runs — detects scoring drift and injects a calibration warning if scores shift by more than 0.5.
+### 3. Cross-Run Memory
+Each agent maintains a rolling JSON store (`agent_memory/{agent}_memory.json`, max 50 entries).
+- `GherkinAuthorAgent` tracks recurring gaps — endpoints in the spec but missing from prior outputs. Injected as reminders on the next run.
+- `ScriptForgeAgent` remembers working import blocks, auth header patterns, and fixture names that succeeded. Never reinvented from scratch.
+- `RatingJudgeAgent` detects scoring drift — if average scores shift by more than 0.5 across runs, a calibration warning is injected.
 
-### 4. Decision log — per-run audit trail
-After every run, each agent writes `logs/run_{timestamp}/{agent}_decision.log` containing: inputs received, rules applied, decisions made, confidence score, and what was flagged for human review. Every pipeline run is fully inspectable.
+### 4. Decision Log — Per-Run Audit Trail
+After every run each agent writes `logs/run_{timestamp}/{agent}_decision.log` containing: inputs received, rules applied, decisions made, confidence score, and what was flagged for human review. Every pipeline run is fully inspectable.
 
-### 5. Confidence gate — autonomous escalation
-Every agent outputs a `confidence` float (0.0–1.0). Below the threshold set in `agent_config.yaml`, the agent writes to `human_review/human_review_queue.json` and marks `needs_human_review: true`. The pipeline continues — human review is asynchronous. The orchestrator never pauses; it logs the escalation prominently at the end of the run.
+### 5. Confidence Gate — Autonomous Escalation
+Every agent outputs a `confidence` float (0.0–1.0). Below the threshold set in `agent_config.yaml`, the agent writes to `human_review/human_review_queue.json` and marks `needs_human_review: true`. The pipeline continues — human review is asynchronous. The orchestrator never pauses; it logs the escalation prominently.
 
-### 6. Formula recalculated in Python
-`RatingJudgeAgent` scores 5 dimensions per scenario, but the weighted formula is always recalculated in Python after the LLM responds — never trusted from the LLM output. `EnrichmentAgent` builds the entire enriched Gherkin file in Python by parsing and injecting tags directly — the LLM only writes the rejection summary. `ScriptForgeAgent` verifies import statements and assert counts after generation.
+### 6. Python-Verified Arithmetic
+`RatingJudgeAgent` scores 5 dimensions per scenario, but the weighted formula is **always recalculated in Python** after the LLM responds — never trusted from the LLM output. `EnrichmentAgent` builds the enriched Gherkin in Python by parsing and injecting tags directly. `ScriptForgeAgent` verifies import statements and assert counts after generation.
 
 ---
 
-## Weighted risk scoring
-
-The same formula as before — now applied autonomously by `RatingJudgeAgent` with one LLM call per scenario (prevents token truncation on large suites).
+## Weighted Risk Scoring
 
 | Dimension | Weight | What it checks |
 |---|---|---|
@@ -113,28 +114,53 @@ The same formula as before — now applied autonomously by `RatingJudgeAgent` wi
 Risk Score = [(Impact×1.5) + (Frequency×1.2) + (Probability×1.3) + (Dependency×1.0) + (Assertion×0.5)] / 5.5
 ```
 
-### Priority mapping
-
 | Score | Priority | Tag | Suite |
 |---|---|---|---|
 | 4.5–5.0 | P0 Critical | `@smoke` | smoke |
 | 4.0–4.4 | P1 High | `@smoke` | smoke |
 | 3.0–3.9 | P2 Medium | `@regression` | regression |
-| < 3.0 | Drop | rejected | not generated |
+| < 3.0 | Dropped | rejected | not generated |
 
-P0 count is capped at 20% of passing scenarios — enforced in Python before the LLM call, not by prompt.
+P0 count is capped at 20% of passing scenarios — enforced in Python before the LLM call.
 
 ---
 
-## Project structure
+## Live Dashboard
+
+A Streamlit dashboard provides a real-time view of the pipeline as it runs.
+
+**Features:**
+- 6 agent cards update live — `Waiting → Running → Complete / Escalated`
+- Confidence score and duration shown per agent
+- Live log stream as each agent writes its decision log
+- Human review queue viewer with inline score override form
+- Results tabs after completion: Gherkin viewer, pytest viewer, risk score bar chart
+- Stop pipeline button — terminates subprocess cleanly
+
+> 📸 *Screenshots coming soon*
+
+---
+
+## CI — GitHub Actions
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ai_qe_pipeline.yml` | Push to `requirements/**_FEATURES.md` | Runs all 5 agents via Orchestrator, commits generated tests, uploads logs as artifacts |
+| `run_tests.yml` | After pipeline completes OR push to `tests/api/` | Starts MongoDB + Node backend, seeds users, runs `pytest -m smoke` then `pytest -m regression` |
+
+**Required secret:** `GROQ_API_KEY` — add in `Settings → Secrets and variables → Actions`.
+
+---
+
+## Project Structure
 
 ```
 AI-QE-Pipeline/
 │
 ├── agents/
-│   ├── base_agent.py                  # shared base: Groq client, memory, confidence gate, decision log
+│   ├── base_agent.py                  # Shared base: Groq client, memory, confidence gate, decision log
 │   ├── spec_analyst/
-│   │   ├── RULES.md                   # hard constraints
+│   │   ├── RULES.md                   # Hard constraints
 │   │   ├── SKILLS.md                  # I/O contract
 │   │   └── spec_analyst_agent.py
 │   ├── gherkin_author/
@@ -158,11 +184,21 @@ AI-QE-Pipeline/
 │       ├── SKILLS.md
 │       └── orchestrator_agent.py
 │
-├── agent_config.yaml                  # model, temperature, thresholds per agent
-├── agent_memory/                      # cross-run memory per agent (JSON, rolling 50 entries)
+├── streamlit_app/                     # Live dashboard
+│   ├── app.py
+│   ├── pipeline_runner.py
+│   └── components/
+│       ├── sidebar.py
+│       ├── agent_status.py
+│       ├── log_viewer.py
+│       ├── review_queue.py
+│       └── results_tabs.py
+│
+├── agent_config.yaml                  # Model, temperature, thresholds per agent
+├── agent_memory/                      # Cross-run memory per agent (JSON, rolling 50 entries)
 ├── human_review/
-│   ├── human_review_queue.json        # escalated items — SDET reviews after run
-│   └── rating_overrides.json         # optional: manual score overrides before next run
+│   ├── human_review_queue.json        # Escalated items — SDET reviews after run
+│   └── rating_overrides.json         # Manual score overrides before next run
 │
 ├── logs/
 │   └── run_{timestamp}/
@@ -174,40 +210,41 @@ AI-QE-Pipeline/
 │       └── pipeline_summary.log
 │
 ├── requirements/
-│   ├── LOGIN_FEATURES.md              # feature spec — pipeline input
+│   ├── LOGIN_FEATURES.md              # Feature spec — pipeline input
 │   ├── openapi.json                   # API contract
-│   └── login_spec_analysis.json      # SpecAnalystAgent output (committed)
+│   └── login_spec_analysis.json      # SpecAnalystAgent output
 │
 ├── tests/
-│   ├── conftest.py                    # shared fixtures
+│   ├── conftest.py
 │   ├── test_cases/
-│   │   ├── login.test_case.md         # GherkinAuthorAgent output
-│   │   ├── login.manifest.json        # scenario manifest
-│   │   ├── login.enriched.md          # EnrichmentAgent output — tagged + prioritised
+│   │   ├── login.test_case.md
+│   │   ├── login.manifest.json
+│   │   ├── login.enriched.md
 │   │   ├── login.enrichment_summary.json
 │   │   └── login.rejection_summary.md
 │   └── api/
-│       ├── test_login_api.py          # ScriptForgeAgent output — runnable pytest
-│       └── test_login_manifest.json
+│       └── test_login_api.py
 │
 ├── ratings/
-│   └── login_ratings.json            # RatingJudgeAgent output — all scores + justifications
+│   └── login_ratings.json
 │
 ├── .github/workflows/
-│   ├── ai_qe_pipeline.yml            # triggers on push to requirements/**_FEATURES.md
-│   └── run_tests.yml                 # triggers after pipeline — starts backend, runs pytest
+│   ├── ai_qe_pipeline.yml
+│   └── run_tests.yml
 │
-└── backend/                          # TestMart Node.js backend (unchanged)
+└── backend/                           # TestMart Node.js backend
 ```
 
 ---
 
-## Quick start
+## Quick Start
 
 ```bash
 # 1. Clone and activate venv
+git clone https://github.com/tfariyah31/ai-qe-pipeline.git
+cd ai-qe-pipeline
 python3 -m venv venv && source venv/bin/activate
-pip install groq pyyaml pytest requests pytest-html
+pip install -r requirements.txt
 
 # 2. Set your Groq API key (free tier — no credit card required)
 export GROQ_API_KEY=your_key_here
@@ -226,7 +263,13 @@ pytest tests/api/test_login_api.py -v -m smoke
 pytest tests/api/test_login_api.py -v -m regression
 ```
 
-### Run agents individually (for debugging)
+### Run the Live Dashboard
+
+```bash
+python -m streamlit run streamlit_app/app.py
+```
+
+### Run Agents Individually
 
 ```bash
 python -m agents.spec_analyst.spec_analyst_agent
@@ -238,18 +281,9 @@ python -m agents.script_forge.script_forge_agent
 
 ---
 
-## CI — GitHub Actions
+## Human Review Flow
 
-| Workflow | Trigger | What it does |
-|---|---|---|
-| `ai_qe_pipeline.yml` | Push to `requirements/**_FEATURES.md` | Runs all 5 agents via Orchestrator, commits generated tests, uploads logs as artifacts |
-| `run_tests.yml` | After pipeline completes OR push to `tests/api/` | Starts MongoDB + Node backend, seeds users, runs `pytest -m smoke` then `pytest -m regression` |
-
-**Required secret:** `GROQ_API_KEY` — add in `Settings → Secrets and variables → Actions`.
-
-### Human review flow
-
-After each pipeline run, check `human_review/human_review_queue.json` for items the agents escalated. To override a RatingJudge score before re-running:
+After each pipeline run, check `human_review/human_review_queue.json` for items agents escalated. To override a score before re-running:
 
 ```json
 // human_review/rating_overrides.json
@@ -272,24 +306,7 @@ Re-run `RatingJudgeAgent` and it will apply the override, mark `human_override: 
 
 ---
 
-## LLM model strategy
-
-| Agent | Model | Reason |
-|---|---|---|
-| SpecAnalystAgent | `llama-3.3-70b-versatile` | Complex spec reasoning |
-| GherkinAuthorAgent | `llama-3.3-70b-versatile` | Creative + rule-bound generation |
-| RatingJudgeAgent | `llama-3.1-8b-instant` | Structured scoring — formula in Python |
-| EnrichmentAgent | `llama-3.1-8b-instant` | Deterministic tagging — Gherkin in Python |
-| ScriptForgeAgent | `llama-3.1-8b-instant` | Code gen — repair logic catches errors |
-| OrchestratorAgent | `llama-3.1-8b-instant` | Routing only |
-
-All models run on **Groq free tier** (no credit card required). Rate limits: `llama-3.3-70b` = 1,000 req/day, 12,000 TPM. `llama-3.1-8b` = 14,400 req/day, 6,000 TPM. The pipeline adds a 6-second delay between per-scenario LLM calls and a 10-second delay between agents to stay within TPM limits.
-
-Model assignments and all thresholds are configurable in `agent_config.yaml` — no code changes needed.
-
----
-
-## Backend setup
+## Backend Setup
 
 ```
 PORT=5001
@@ -312,7 +329,7 @@ Seed users created by `node seedUser.js`:
 
 ## Author
 
-**Tasnim Fariyah**
+**Tasnim Fariyah** — 14 years in QA engineering, now building AI-powered quality systems.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tfariyah31-181717?logo=github)](https://github.com/tfariyah31)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-tasnim--fariyah-0A66C2?logo=linkedin)](https://www.linkedin.com/in/tasnim-fariyah/)
